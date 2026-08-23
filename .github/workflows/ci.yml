@@ -1,0 +1,44 @@
+# Type-check, test and build on every push. Nothing here needs secrets or a runner
+# beyond the default, so it works on a fresh fork.
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      # `npm run build` runs `tsc -b` first, so this covers type-checking too.
+      - name: Build
+        run: npm run build
+
+      # Non-blocking: there are 7 known pre-existing errors in Toolbar.tsx and
+      # NodeIcons.tsx (inline components, mixed exports). Fix those and drop this line.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: opticalab-web
+          path: dist
+          retention-days: 14

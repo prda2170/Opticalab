@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+*.local
+
+# Packaged desktop installers (electron-builder). Hundreds of MB per platform —
+# keep them out of the repo, and ideally out of a synced folder too.
+release
+
+# Tooling caches
+*.tsbuildinfo
+.eslintcache
+coverage
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Machine-specific launcher: hardcodes an absolute path, so it is useful locally
+# and meaningless to anyone else.
+preview.bat
+
+# Local agent/editor settings (the shared launch.json is committed)
+.claude/settings.local.json
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor scratch
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

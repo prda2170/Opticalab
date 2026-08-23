@@ -1,0 +1,15 @@
+/* Loaded after @xyflow/react/dist/style.css so these rules win */
+.react-flow__handle {
+  opacity: 0 !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 1px !important;
+  height: 1px !important;
+}
+
+/* Raise the beam edge SVG above the node layer so beams are visible
+   all the way to the optical surface of mirrors/splitters. */
+.react-flow__edges {
+  z-index: 10 !important;
+}

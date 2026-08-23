@@ -1,0 +1,24 @@
+# Normalise line endings in the repo to LF, whatever the checkout platform does.
+# Without this, a Windows checkout commits CRLF and every file looks rewritten to a
+# collaborator on macOS or Linux.
+* text=auto eol=lf
+
+# Windows-only helpers need CRLF to run reliably.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary — never touch, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+
+# Generated: keep it out of diffs and reviews, but still tracked.
+package-lock.json -diff linguist-generated
+
+# Saved layouts are data, not source. Diffing them is noise.
+Layouts/*.json -diff
