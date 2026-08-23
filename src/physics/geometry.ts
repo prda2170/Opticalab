@@ -149,6 +149,31 @@ export function boxHalfExtent(halfAlong: number, halfCross: number, localDir: Ve
 }
 
 /**
+ * Distance from a point to a line *segment* (not the infinite line), and how far along
+ * the segment the closest approach falls.
+ *
+ * Used for two unrelated things that both need it: finding which beam a power probe is
+ * nearest, and keeping a component's label clear of the beams around it.
+ */
+export function nearestOnSegment(
+  p: Pt,
+  a: Pt,
+  b: Pt,
+): { distance: number; along: number; point: Pt } {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 < 1e-12) {
+    return { distance: Math.hypot(p.x - a.x, p.y - a.y), along: 0, point: { x: a.x, y: a.y } };
+  }
+  // Clamped, so a point past the end of a beam measures to the end rather than to the
+  // infinite line it lies on.
+  const t = Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  const point = { x: a.x + dx * t, y: a.y + dy * t };
+  return { distance: Math.hypot(p.x - point.x, p.y - point.y), along: t * Math.sqrt(len2), point };
+}
+
+/**
  * Reflect `d` off a surface lying along `surfaceDeg`.
  *
  * `d − 2(d·n)n` about the surface normal, which is the general law — it turns a beam by

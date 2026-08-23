@@ -196,6 +196,24 @@ export function mirrorHatchSide(beamIn: Vec2, rotation = 0): 1 | -1 {
 }
 
 /**
+ * Half-extents of the artwork **as drawn**, in the component's own frame.
+ *
+ * Not the same as the artwork box for a symbol node: those are drawn as a square icon of
+ * `min(w, h) + 4`, so a waveplate's 32×72 box holds a 36×36 glyph with empty bands above
+ * and below. Anything positioning something *just outside* the visible component — a label,
+ * chiefly — needs the glyph, not the box, or it ends up floating in that empty band. (This
+ * is what `labelLayout`'s old `slack` fudge was compensating for.)
+ *
+ * Box nodes fill their border, so for them the two are the same.
+ */
+export function drawnHalfExtents(type: OpticalNodeData['type']): { halfAlong: number; halfCross: number } {
+  const g = artworkOf(type);
+  if (g.symbolType !== 'symbol') return { halfAlong: g.width / 2, halfCross: g.height / 2 };
+  const icon = (Math.min(g.width, g.height) + 4) / 2;
+  return { halfAlong: icon, halfCross: icon };
+}
+
+/**
  * Whether this is a component type the app still knows about.
  *
  * Keyed off the geometry table, which every component needs an entry in, so a type that

@@ -24,6 +24,7 @@ import { detectorSignalLabel, incidentPower } from '../../physics/detector';
 import { formatCurrent, formatSourcePower } from '../../utils/units';
 
 import { labelLayout } from '../../utils/labelLayout';
+import { labelDistance, labelHalfExtents, DEFAULT_LABEL_SIDE } from '../../physics/labelPlacement';
 import type { Node } from '@xyflow/react';
 
 // Per-component annotation toggle state
@@ -236,7 +237,9 @@ const NodeSymbol: React.FC<{
   labelScale: number;
   /** Detector readout, when the component is showing one. */
   signal: string | null;
-}> = ({ node, toggles, onToggle, theme, showAnnotations, hiddenTypes, labelScale, signal }) => {
+  /** Which way this component's label sits, from the trace. */
+  labelSide: { dx: number; dy: number };
+}> = ({ node, toggles, onToggle, theme, showAnnotations, hiddenTypes, labelScale, signal, labelSide }) => {
   const data = node.data;
   const rotation = data.rotation ?? 0;
   const g = getNodeGeometry(data.type, rotation);
@@ -258,7 +261,7 @@ const NodeSymbol: React.FC<{
     ? Math.min(art.width, art.height) + 4
     : Math.min(g.width, g.height) - 6;
   // The diagram's own base label size is a shade smaller than the canvas's.
-  const label     = labelLayout(data.type, rotation, labelScale, 8);
+  const label     = labelLayout(labelScale, 8);
   // A few icons are wider than they are tall, so centre by their real drawn size.
   const drawn     = iconDimensions(data.type, iconSize);
   const showAnn   = showAnnotations && !hiddenTypes.has(data.type);
@@ -315,30 +318,40 @@ const NodeSymbol: React.FC<{
         );
       })()}
 
-      {/* Name below the node, off by default like the canvas. `slack` pulls it up past
-          the empty box under a tall narrow icon, and the gap scales with the text so
-          small labels sit closer in — same rule the editor canvas uses. */}
-      {data.showLabel === true && (
-        <text
-          x={0} y={hh - label.slack + label.gap + label.fontSize * 0.78}
-          textAnchor="middle" fontSize={label.fontSize} fill={textColor}
-          fontFamily="system-ui, sans-serif" fontWeight="600"
-        >
-          {data.name}
-        </text>
-      )}
-      {/* Detector readout, independent of the name. */}
-      {signal && (
-        <text
-          x={0}
-          y={hh - label.slack + label.gap + label.fontSize * 0.78
-             + (data.showLabel === true ? label.fontSize * 1.25 : 0)}
-          textAnchor="middle" fontSize={label.fontSize} fill={textColor}
-          fontFamily="ui-monospace, monospace" fontWeight="600"
-        >
-          {signal}
-        </text>
-      )}
+      {/* Name and reading, on the side the tracer chose so they keep clear of the beams.
+          Same `labelDistance` the canvas uses, so the figure matches what was on screen.
+          Anchored by the side: a label to the left of a component ends at it, one to the
+          right starts at it, and one above or below is centred. */}
+      {(data.showLabel === true || signal) && (() => {
+        const lines = [
+          data.showLabel === true ? { text: data.name, mono: false } : null,
+          signal ? { text: signal, mono: true } : null,
+        ].filter(Boolean) as { text: string; mono: boolean }[];
+        const widest = lines.reduce((a, b) => (b.text.length > a.text.length ? b : a)).text;
+        const dist = labelDistance(
+          data.type, rotation, labelSide,
+          labelHalfExtents(widest, label.fontSize), labelScale,
+        );
+        const anchor = labelSide.dx > 0.3 ? 'start' : labelSide.dx < -0.3 ? 'end' : 'middle';
+        // Vertically centre the block on the chosen point.
+        const blockTop = labelSide.dy * dist - ((lines.length - 1) * label.fontSize * 1.25) / 2;
+        return (
+          <g>
+            {lines.map((line, i) => (
+              <text
+                key={line.mono ? 'signal' : 'name'}
+                x={labelSide.dx * dist}
+                y={blockTop + i * label.fontSize * 1.25 + label.fontSize * 0.35}
+                textAnchor={anchor} fontSize={label.fontSize} fill={textColor}
+                fontFamily={line.mono ? 'ui-monospace, monospace' : 'system-ui, sans-serif'}
+                fontWeight="600"
+              >
+                {line.text}
+              </text>
+            ))}
+          </g>
+        );
+      })()}
 
       {/* Annotations above node */}
       {showAnn && annKeys.length > 0 && (
@@ -380,6 +393,7 @@ export const DiagramPanel: React.FC = () => {
   const theme    = useWorkspace(s => s.theme);
   const labelScale = useWorkspace(s => s.labelScale);
   const nodeArrivals = useLayout(s => s.nodeArrivals);
+  const labelSides = useLayout(s => s.labelSides);
 
   const [toggles, setToggles] = useState<AnnotationToggles>({});
   const [zoom, setZoom] = useState(1);
@@ -599,6 +613,7 @@ export const DiagramPanel: React.FC = () => {
                 hiddenTypes={hiddenTypes}
                 labelScale={labelScale}
                 signal={detectorSignalLabel(node.data as OpticalNodeData, incidentPower(nodeArrivals.get(node.id)))}
+                labelSide={labelSides.get(node.id) ?? DEFAULT_LABEL_SIDE}
               />
             ))}
           </svg>

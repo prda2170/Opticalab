@@ -6,6 +6,8 @@ import { CATEGORY_COLORS } from '../../types/components';
 import { getNodeIcon, LaserBoxSVG } from './NodeIcons';
 import { getNodeGeometry, artworkOf } from '../../utils/nodeGeometry';
 import { labelLayout, type LabelLayout } from '../../utils/labelLayout';
+import { labelDistance, labelHalfExtents, DEFAULT_LABEL_SIDE } from '../../physics/labelPlacement';
+import type { Vec2 } from '../../physics/geometry';
 import { detectorSignalLabel, incidentPower as incidentPowerOf } from '../../physics/detector';
 import { mirrorReflect } from '../../physics/geometry';
 import { componentLanes } from '../../physics/lanes';
@@ -219,20 +221,34 @@ const HANDLE_BASE: React.CSSProperties = {
  * narrow icon — a waveplate is 36 px of artwork in a 72 px box — doesn't leave its label
  * floating below empty space. See utils/labelLayout.
  */
+/**
+ * The name (and a detector's reading) beside a component.
+ *
+ * Absolutely positioned on the side the tracer picked, rather than always underneath: a
+ * vertical component's beam runs straight down through where the label used to sit. The
+ * distance comes from `labelDistance`, which the diagram uses too, so the two views cannot
+ * drift apart.
+ */
 const NameLabel: React.FC<{
-  name: string; width: number; color: string; layout: LabelLayout; signal?: string | null;
-}> = ({ name, width, color, layout, signal }) => (
+  name: string;
+  color: string;
+  layout: LabelLayout;
+  signal?: string | null;
+  side: Vec2;
+  distance: number;
+}> = ({ name, color, layout, signal, side, distance }) => (
   <div
     style={{
+      position: 'absolute',
+      left: `calc(50% + ${side.dx * distance}px)`,
+      top: `calc(50% + ${side.dy * distance}px)`,
+      transform: 'translate(-50%, -50%)',
+      pointerEvents: 'none',
       fontSize: layout.fontSize,
-      marginTop: -layout.slack,
       fontWeight: 500,
       color,
       textAlign: 'center',
-      maxWidth: Math.max(width, 60),
       lineHeight: 1.2,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
       whiteSpace: 'nowrap',
       letterSpacing: 0.1,
     }}
@@ -282,9 +298,19 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
 
   // Names are off unless asked for — see BaseNodeData.showLabel.
   const showLabel  = data.showLabel === true;
-  const label      = labelLayout(data.type, rotation, labelScale);
+  const label      = labelLayout(labelScale);
   // Detector readout, shown independently of the name label.
   const signal     = detectorSignalLabel(data, incidentPower);
+
+  // Which side the tracer chose for this label, and how far out it goes. The side needs
+  // the beams, so it comes from the trace; the distance needs the font size, so it is
+  // computed here from the same shared function the diagram uses.
+  const labelSide  = useLayout(s => s.labelSides.get(id)) ?? DEFAULT_LABEL_SIDE;
+  const labelText  = showLabel ? data.name : (signal ?? '');
+  const labelDist  = labelDistance(
+    data.type, rotation, labelSide,
+    labelHalfExtents(labelText, label.fontSize), labelScale,
+  );
 
   // Common handle renderer
   const renderHandles = () => (
@@ -365,7 +391,10 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
             title="in"
           />
         </div>
-        {(showLabel || signal) && <NameLabel name={showLabel ? data.name : ''} width={width} color={labelColor} layout={label} signal={signal} />}
+        {(showLabel || signal) && (
+          <NameLabel name={showLabel ? data.name : ''} color={labelColor} layout={label}
+            signal={signal} side={labelSide} distance={labelDist} />
+        )}
       </div>
     );
   }
@@ -411,8 +440,10 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
           )}
           {renderHandles()}
         </div>
-        {/* Label below */}
-        {(showLabel || signal) && <NameLabel name={showLabel ? data.name : ''} width={width} color={labelColor} layout={label} signal={signal} />}
+        {(showLabel || signal) && (
+          <NameLabel name={showLabel ? data.name : ''} color={labelColor} layout={label}
+            signal={signal} side={labelSide} distance={labelDist} />
+        )}
       </div>
     );
   }
@@ -515,8 +546,10 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
         </div>
       </div>
 
-      {/* Label below — same style as symbol nodes */}
-      {(showLabel || signal) && <NameLabel name={showLabel ? data.name : ''} width={width} color={labelColor} layout={label} signal={signal} />}
+      {(showLabel || signal) && (
+        <NameLabel name={showLabel ? data.name : ''} color={labelColor} layout={label}
+          signal={signal} side={labelSide} distance={labelDist} />
+      )}
     </div>
   );
 };

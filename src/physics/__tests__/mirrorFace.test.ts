@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mirrorHatchSide, angleStepFor, SURFACE_AT_45, artworkOf, getNodeGeometry } from '../../utils/nodeGeometry';
 import { unitAt, mirrorReflect, mirrorSurfaceDeg, angleOf, angleDiff, dot, rotateBy, MIRROR_STEP_DEG, DIR_STEP_DEG, type Vec2 } from '../geometry';
-import { labelLayout } from '../../utils/labelLayout';
+import { labelDistance, labelHalfExtents, LABEL_GAP_PX } from '../labelPlacement';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -89,37 +89,51 @@ describe('mirror-like components', () => {
   });
 });
 
-// ── Labels under a turned component ──────────────────────────────────────────
+// ── Labels beside a turned component ──────────────────────────────
 
-describe('label slack at an angle', () => {
-  it('is unchanged on the axes', () => {
-    // A waveplate is 32x72 with a 36 px square icon: 18 px of empty box below it at 0°,
-    // and none at 90°, where the box is only 32 tall.
-    expect(labelLayout('qwp', 0).slack).toBeCloseTo(18, 9);
-    expect(labelLayout('qwp', 90).slack).toBe(0);
-    expect(labelLayout('hwp', 180).slack).toBeCloseTo(18, 9);
+describe('labelDistance at an angle', () => {
+  const label = labelHalfExtents('M1', 9);
+
+  it('measures from the icon, not from the box it sits in', () => {
+    // A waveplate is 32x72 with a 36 px square icon. The box has 18 px of empty space below
+    // the glyph at 0 degrees, which the old `slack` fudge subtracted back off. Measuring
+    // from the glyph gets there directly, and works sideways too.
+    const down = labelDistance('qwp', 0, unitAt(90), label);
+    expect(down).toBeCloseTo(18 + LABEL_GAP_PX + label.halfHeight, 9);
   });
 
-  it('accounts for a square icon standing taller when turned', () => {
-    // At 45° the 36 px icon is 36√2 = 50.9 tall inside a 73.5 tall box → 11.3 of slack,
-    // not the 18.75 the old formula gave by ignoring the turn.
-    const at45 = labelLayout('qwp', 45).slack;
-    expect(at45).toBeCloseTo((getNodeGeometry('qwp', 45).height - 36 * Math.SQRT2) / 2, 9);
-    expect(at45).toBeLessThan(18);
-    expect(at45).toBeGreaterThan(0);
+  it('follows the icon as it turns, not the axis-aligned box', () => {
+    // The glyph is square, so the distance to its edge grows out to 18*sqrt(2) on the
+    // diagonal. The bounding box grows the same way, but a label placed off the box would
+    // float; placed off the glyph it stays touching.
+    const at45 = labelDistance('qwp', 45, unitAt(90), label);
+    expect(at45).toBeCloseTo(18 * Math.SQRT2 + LABEL_GAP_PX + label.halfHeight, 9);
+    expect(at45).toBeGreaterThan(labelDistance('qwp', 0, unitAt(90), label));
   });
 
-  it('never goes negative, whatever the angle', () => {
+  it('is the same in every direction for a square icon', () => {
+    // A symbol's drawn glyph is square, so turning the *label* around a fixed component
+    // changes only the label's own reach, not the icon's.
+    const sides = [0, 90, 180, 270].map(deg => labelDistance('qwp', 0, unitAt(deg), label));
+    expect(sides[1]).toBeCloseTo(sides[3], 9);   // up and down
+    expect(sides[0]).toBeCloseTo(sides[2], 9);   // left and right
+  });
+
+  it('respects a rectangular body, which a box icon has', () => {
+    // An AOM is 60x44 of artwork: the label sits further out off the long side.
+    const offEnd = labelDistance('aom', 0, unitAt(0), label);
+    const offSide = labelDistance('aom', 0, unitAt(90), label);
+    expect(offEnd - offSide).toBeCloseTo(30 - 22 + (label.halfWidth - label.halfHeight), 9);
+  });
+
+  it('always clears the artwork, at every angle on the lattice', () => {
     for (const type of ['qwp', 'laser_source', 'aom', 'iris', 'vapor_cell'] as const) {
       for (let deg = 0; deg < 360; deg += DIR_STEP_DEG) {
-        expect(labelLayout(type, deg).slack).toBeGreaterThanOrEqual(0);
+        for (let sideDeg = 0; sideDeg < 360; sideDeg += DIR_STEP_DEG) {
+          expect(labelDistance(type, deg, unitAt(sideDeg), label))
+            .toBeGreaterThanOrEqual(LABEL_GAP_PX + label.halfHeight);
+        }
       }
     }
-  });
-
-  it('leaves instrument nodes flush with their border', () => {
-    // Box artwork fills its border exactly, so there is no empty band to pull through.
-    expect(labelLayout('aom', 0).slack).toBe(0);
-    expect(labelLayout('aom', 90).slack).toBe(0);
   });
 });

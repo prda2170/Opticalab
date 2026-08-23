@@ -3,7 +3,7 @@
 Working reference for this codebase: what it is, how it fits together, what's been
 changed, and what's still open. Kept up to date as work proceeds.
 
-Last updated: 2026-08-15
+Last updated: 2026-08-23
 
 ---
 
@@ -140,6 +140,12 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   Segment coordinates stay physically true — `lengthMm`, waist positions and hit
   points are unaffected. **Renderers must draw via `drawnEndpoints(seg)`**, never
   the raw coordinates, or the two views will disagree.
+- **Where a label sits is geometry, not styling.** `placeLabels` (`physics/labelPlacement.ts`)
+  runs after fanning and publishes `RouteResult.labelSides`: node id → the direction its name
+  should sit from its centre, chosen so the text clears every beam and every other label. Only
+  the *direction* needs the beams; how far out is `labelDistance`, which both views call. A
+  renderer that picked its own side would put the exported figure's labels somewhere other
+  than the canvas's.
 
 ### Routing algorithm (`src/physics/autoRoute.ts`)
 
@@ -344,10 +350,9 @@ Facts that shape the design:
 
 - ✅ **The w/h swap is gone** — `getNodeGeometry` is a true bounding box and the artwork
   and body boxes are separate functions (stage 2). Icon sizing now reads the artwork, so a
-  turned symbol's icon no longer grows with its box. Still on the render side for stage 4:
-  `labelLayout`'s slack is computed against the occupied box, which is right at 0/90 but
-  will place a 45° label too low, since a square icon turned 45° fills √2 more of the box
-  than the slack formula assumes.
+  turned symbol's icon no longer grows with its box. The label side of it is settled too:
+  `labelDistance` measures from `drawnHalfExtents` (the glyph as drawn), so there is no slack
+  correction left to get wrong at 45°.
 - ✅ **`faceHalf` is exact** (stage 2): the beam direction is taken into the component's
   own frame and intersected with its body box, so which face the beam meets falls out of
   the maths. `beamFaceHalf` still means "distance to the optical surface along the
@@ -359,8 +364,9 @@ Facts that shape the design:
   prevent — with a real line test that exclusion is unnecessary, since only genuinely
   collinear-and-overlapping segments fan.
 - ✅ **All four stage-4 items are done** (see the change log): one mirror artwork turned by
-  rotation, an angle control on the component's own grain, label slack that accounts for a
-  turned icon, and instrument nodes that turn like everything else.
+  rotation, an angle control on the component's own grain, labels measured off the glyph
+  rather than the box (and since 2026-08-23 placed on whichever side is clear of the beams),
+  and instrument nodes that turn like everything else.
 - ✅ **Handles were free, as expected.** `Position.Left/Right/Top/Bottom` and `rotatePosition`'s 90°
   steps look blocking but aren't: symbol nodes already use `atNodeCentre()` and auto-edges
   carry explicit coordinates, so only a handle's *existence* matters to xyflow. Give box
@@ -486,6 +492,63 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — labels get out of the way of the beams
+
+**A component's name is no longer always drawn below it.** That rule was written when every
+beam ran horizontally; on the open lattice a vertical beam runs straight down through the
+label, and a diagonal one cuts across it. On the real D1 layout with every name shown, 14 of
+41 labels sat on a beam.
+
+**The side is chosen in `physics/labelPlacement.ts`, as a trace post-pass** — same shape and
+same reason as `fanCollinearSegments` and `probeSnaps`. It is cosmetic geometry both views
+must agree on, so deciding it in a renderer would let the canvas and the exported figure
+disagree. `autoRoute` publishes `labelSides: Map<string, Vec2>` on `RouteResult` and the
+store passes it through; `OpticalNode` and `DiagramPanel` both read it.
+
+**What is published is a direction, not an offset.** How far out to sit depends on the icon,
+the font size and the label's own text, all of which the renderer knows; only *which way* to
+go needs the beams. The distance itself is one shared function, `labelDistance(type,
+rotation, side, labelHalfExtents, scale)` — icon reach in that direction, plus a gap, plus
+the label's own reach — so the two views cannot drift apart.
+
+**Candidates, best first: the downhill perpendicular, the other perpendicular, then the four
+diagonals.** Perpendicular is the only direction guaranteed to leave the beam immediately,
+and preferring the downhill one keeps the familiar "name underneath" wherever it is free —
+12 of the 41 labels stay exactly where they were. Along the beam is never offered, not even
+as a last resort. Placement is greedy in node order (stable, so labels don't shuffle between
+renders); a label takes the first side clearing `LABEL_CLEARANCE_PX = 7` from every beam
+*and* every label already placed, and on a bench where nothing clears it takes the roomiest
+rather than giving up.
+
+**`labelLayout` shrank to what it actually is: sizing.** It was `labelLayout(type, rotation,
+scale, basePx)` returning `{fontSize, gap, slack, offset}`; it is now `labelLayout(scale,
+basePx)` returning `{fontSize, gap}`. The `slack` fudge is gone with it — it existed because
+a symbol's square glyph sits in a taller box (36 px of artwork in a 72 px box), so a label
+placed off the *box* floated 18 px from the thing it named. `labelDistance` measures from the
+glyph instead (`drawnHalfExtents`), which is right in every direction rather than only
+downwards, and needs no correction at 45°.
+
+**Two bugs found while wiring it up.** The placement pass has to see the nodes as the trace
+just decided them — `labelNodes` re-applies the chosen snaps, rotations and incoming
+directions — or every label is one trace behind, and a cell that just turned to face its beam
+gets the side it wanted a moment ago. And the label centre must come from the *occupied* box
+(`getNodeGeometry(type, rotation)`), not the artwork box: a 90°-turned laser is 66×90, not
+90×66, so the artwork box put its centre 12 px out and every label hung off that centre with
+it — the same mistake `emitterOrigin` made in stage 2.
+
+Verified on the real D1 layout with all 41 names shown: 14 labels on a beam under the old
+always-below rule, **0** under the new pass, 19 moved off the default. Checked in the app —
+restored that layout, all 41 labels render, and the diagram shows names beside the diagonal
+mirrors and above the vertical run instead of on top of them.
+
+26 tests added (`__tests__/labelPlacement.test.ts`, plus the two label suites rewritten):
+never offering a side along the beam at any of the 24 lattice angles, down for a horizontal
+beam and sideways for a vertical one, flipping to the far side when a dump lane takes the
+near one, falling back to a diagonal when both perpendiculars are blocked, still answering on
+a bench with beams from every direction, two long names repelling each other, stability
+across repeated calls, and `autoRoute` publishing unit vectors for labelled nodes only.
+**494 tests total.**
 
 ### 2026-08-23 — instruments face the beam; no lettering in the PBS
 

@@ -12,7 +12,7 @@ import { drawnEndpoints } from './beamLayout';
 import { advanceBeam } from './propagate';
 import { pxToMm, formatSpot } from './scale';
 import { formatDetuning } from './wavelength';
-import type { Pt } from './geometry';
+import { nearestOnSegment, type Pt } from './geometry';
 
 /**
  * How far (px) a probe may sit from a beam and still read it. Deliberately looser than
@@ -40,21 +40,15 @@ export function nearestBeam(
 
   for (const segment of segments) {
     const { x1, y1, x2, y2 } = drawnEndpoints(segment);
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const len2 = dx * dx + dy * dy;
-    if (len2 < 1e-9) continue;
-
-    // Project onto the segment, clamped to its ends so a probe past the end of a beam
-    // reads the end rather than the infinite line.
-    const t = Math.min(1, Math.max(0, ((point.x - x1) * dx + (point.y - y1) * dy) / len2));
-    const px = x1 + dx * t;
-    const py = y1 + dy * t;
-    const distance = Math.hypot(point.x - px, point.y - py);
-    if (distance > reach) continue;
-
-    if (!best || distance < best.distance) {
-      best = { segment, distance, along: t * Math.sqrt(len2), point: { x: px, y: py } };
+    // A zero-length segment is not a beam: it has no direction to read a spot size along,
+    // so it is skipped rather than reported as a hit at distance 0.
+    if (Math.hypot(x2 - x1, y2 - y1) < 1e-9) continue;
+    // Clamped to the segment's ends, so a probe past the end of a beam reads the end
+    // rather than the infinite line it lies on.
+    const hit = nearestOnSegment(point, { x: x1, y: y1 }, { x: x2, y: y2 });
+    if (hit.distance > reach) continue;
+    if (!best || hit.distance < best.distance) {
+      best = { segment, distance: hit.distance, along: hit.along, point: hit.point };
     }
   }
 

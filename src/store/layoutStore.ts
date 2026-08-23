@@ -50,6 +50,8 @@ export interface LayoutState {
   nodeBeams: Map<string, BeamState>;
   /** node id → every beam arriving at that node. A detector reads their total. */
   nodeArrivals: Map<string, BeamState[]>;
+  /** node id → which way its label sits, chosen by the tracer to clear the beams. */
+  labelSides: Map<string, { dx: number; dy: number }>;
   /** Physical problems the trace found, keyed by the component they belong to. */
   warnings: Map<string, string[]>;
 
@@ -156,7 +158,7 @@ export function createLayoutStore(initial?: LayoutInit): LayoutStoreApi {
       const key = routeKey(nodes, userEdges);
       if (!force && key === lastRouteKey) return;
       lastRouteKey = key;
-      const { segments, beams, nodeBeams, nodeArrivals, warnings: found } = autoRoute(
+      const { segments, beams, nodeBeams, nodeArrivals, labelSides, warnings: found } = autoRoute(
         nodes.filter(isOpticalNode),
         userEdges,
       );
@@ -166,7 +168,7 @@ export function createLayoutStore(initial?: LayoutInit): LayoutStoreApi {
         if (list) list.push(w.message);
         else warnings.set(w.nodeId, [w.message]);
       }
-      set({ segments, beamMap: beams, nodeBeams, nodeArrivals, warnings });
+      set({ segments, beamMap: beams, nodeBeams, nodeArrivals, labelSides, warnings });
     };
 
     const startNodes = initial?.nodes ?? [];
@@ -193,6 +195,7 @@ export function createLayoutStore(initial?: LayoutInit): LayoutStoreApi {
       beamMap: new Map(),
       nodeBeams: new Map(),
       nodeArrivals: new Map(),
+      labelSides: new Map(),
       warnings: new Map(),
       selectedNodeId: null,
       dirty: layoutFingerprint(startNodes, startEdges) !== startFingerprint,

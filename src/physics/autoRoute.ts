@@ -16,6 +16,7 @@ import { mirrorReflect, perpOf, dirKey, rotateBy, boxHalfExtent, angleOf, snapAn
 import { mmToPx, pxToMm } from './scale';
 import { drawnEndpoints, fanCollinearSegments } from './beamLayout';
 import { bodyAxis, componentLanes, laneNormal } from './lanes';
+import { placeLabels } from './labelPlacement';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,12 @@ export interface RouteResult {
   rotations: Map<string, number>;
   /** Node-id → direction of beam entering that node (used for handle placement) */
   beamInDirs: Map<string, Vec2>;
+  /**
+   * Node-id → which way its label should sit from its centre, chosen to keep clear of the
+   * beams. Only for nodes that show one. Both views read this, so the canvas and the
+   * exported figure place labels identically.
+   */
+  labelSides: Map<string, Vec2>;
   /** Invisible phantom endpoint nodes for beams with no component in their path */
   phantomNodes: Node[];
   /** True when the trace hit a step or hit limit and some beams were dropped. */
@@ -139,6 +146,29 @@ export interface RouteResult {
 export interface RouteWarning {
   nodeId: string;
   message: string;
+}
+
+/**
+ * The nodes as this trace has just decided them — snapped position, chosen rotation.
+ *
+ * Label placement has to see the component where it will actually be drawn: a cell that
+ * turned to face the beam has a different label side than it did a moment ago, and using
+ * the stale data would place every label one trace behind.
+ */
+function labelNodes(
+  nodes: Node<OpticalNodeData>[],
+  result: Pick<RouteResult, 'snaps' | 'rotations' | 'beamInDirs'>,
+): Node<OpticalNodeData>[] {
+  return nodes.map(node => {
+    const snap = result.snaps.get(node.id);
+    const rotation = result.rotations.get(node.id) ?? node.data.rotation ?? 0;
+    const beamIncomingDir = result.beamInDirs.get(node.id) ?? (node.data as { beamIncomingDir?: Vec2 }).beamIncomingDir;
+    return {
+      ...node,
+      position: snap ?? node.position,
+      data: { ...node.data, rotation, beamIncomingDir },
+    };
+  });
 }
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
@@ -272,7 +302,7 @@ export function autoRoute(
   const result: RouteResult = {
     autoEdges: [], segments: [], beams: new Map(), nodeBeams: new Map(),
     nodeArrivals: new Map(),
-    snaps: new Map(), rotations: new Map(), beamInDirs: new Map(),
+    snaps: new Map(), rotations: new Map(), beamInDirs: new Map(), labelSides: new Map(),
     phantomNodes: [], truncated: false, warnings: [],
   };
 
@@ -613,6 +643,10 @@ export function autoRoute(
 
   // ── Separate beams that share a line, for drawing only ────────────────────
   fanCollinearSegments(result.segments);
+
+  // ── Choose which side each label sits on, now that the beams are known ─────
+  // After fanning, so a label measures against the beams as they will be drawn.
+  result.labelSides = placeLabels(labelNodes(nodes, result), result.segments);
 
   // ── Derive xyflow edges from the segments ─────────────────────────────────
   for (const seg of result.segments) {
