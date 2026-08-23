@@ -9,6 +9,9 @@ Built because drawing a beam path in Inkscape tells you nothing about whether it
 a full ray-tracer tells you far more than you want while you are still deciding where the
 mirrors go.
 
+It runs in a browser and installs as a desktop app, offline, with no setup — see
+[Installing it as an app](#installing-it-as-an-app).
+
 <!-- A screenshot belongs here. Editor tab, a layout with an AOM double pass, dark theme. -->
 
 ## What it does
@@ -56,25 +59,85 @@ Then open <http://localhost:7432>.
 | `npm test` | Run the test suite once (vitest) |
 | `npm run test:watch` | Re-run tests on change |
 | `npm run lint` | ESLint over the project |
+| `npm run icons` | Regenerate every app icon from `public/icon.svg` |
 | `npm run electron` | Run the desktop shell against a build |
 | `npm run electron:dev` | Desktop shell against the dev server |
 | `npm run electron:build` | Build, then package installers into `release/` |
 
-## Distributing it
+## Installing it as an app
+
+OpticaLab is a PWA, so the hosted version installs like a desktop app: open the link, click
+the install icon in the address bar, and it gets a Start-menu / dock entry and its own
+window. After the first visit it works **fully offline** — the whole app is 480 kB and makes
+no network calls at runtime, so the service worker precaches all of it.
+
+| Browser | Install | Save dialog |
+|---|---|---|
+| Chrome / Edge desktop | Full — own window, Start menu / dock entry | Native save dialog |
+| Safari 17+ (macOS) | "Add to Dock" | Falls back to a download |
+| Firefox desktop | Not supported — runs as a tab, offline still works | Falls back to a download |
+| iOS / Android | Add to Home Screen | Download |
+
+The save dialog uses the File System Access API where it exists (Chromium) and falls back to
+an ordinary download elsewhere; loading works everywhere.
+
+Updates are **offered, not applied**. A layout only exists in memory until you save it, so a
+background reload would throw away whatever bench you were drawing. When a new build is
+deployed, a bar appears — *Reload* now, or *Later* and it applies next launch.
+
+## Hosting it
 
 The app is entirely client-side — no server, no database, nothing native — so the built
-`dist/` is a self-contained static site with relative paths. Any static host works, and
-that is the lowest-friction way to share it.
+`dist/` is a self-contained static site.
 
-For desktop installers, `electron-builder` is configured (NSIS / dmg / AppImage) but two
-things are outstanding:
+**Netlify** is what `netlify.toml` is set up for: point Netlify at the repo and it needs
+nothing typed into the dashboard — build command, publish directory, Node version, the SPA
+redirect and cache headers are all in the file. Any host works, but two things matter:
+
+- **HTTPS is required** for a service worker, so installation only works over `https://` (or
+  `localhost` while developing). An internal server with a self-signed certificate will
+  serve the app but will not install it.
+- **Serve it from a domain root.** The service worker's scope is `/`, set in
+  `vite.config.ts`. Hosting under a subpath (a GitHub Pages *project* site, say) needs both
+  Vite's `base` and the plugin's `base`/`scope` changed to that subpath.
+
+Vite's own `base` is `'./'` on purpose, and the PWA plugin is given `'/'` separately: the
+Electron shell loads the same `dist/index.html` over `file://`, where an absolute base would
+resolve assets against the filesystem root, while a worker's scope cannot be relative.
+
+To verify a build before sending the link round:
+
+```bash
+npm run build && npm run preview
+```
+
+Open the localhost URL in Chrome or Edge — an install icon should appear in the address bar,
+and DevTools → Application → Service Workers should show one activated with 13 precached
+entries. Tick *Offline* and reload to confirm it runs with no network.
+
+## Desktop installers
+
+`electron-builder` is configured (NSIS / dmg / AppImage), and the shell adds a native menu
+and file associations the PWA cannot. Two things are outstanding:
 
 - **Icons.** `electron-builder` expects `build/icon.ico`, `build/icon.icns` and a ≥512 px
-  `build/icon.png`. Without them you ship the default Electron icon.
+  `build/icon.png`. `npm run icons` produces the PNG set for the web app but not the
+  platform-specific `.ico`/`.icns`.
 - **Signing.** Unsigned builds mean a SmartScreen warning on Windows and a Gatekeeper block
   on macOS. Windows wants an OV code-signing certificate; macOS wants an Apple Developer
   account and notarization, and cannot be built from Windows at all. A CI matrix
   (windows/macos/ubuntu) is the usual way around the last part.
+
+Given that, the hosted PWA is the cheaper way to get OpticaLab onto a colleague's machine —
+no certificate, no notarization, no 250 MB download, and updates that arrive on their own.
+
+## Icons
+
+Every icon comes from one file, `public/icon.svg` — the lens-and-axis mark the title bar
+draws, on the app's own background so an installed window does not flash white on launch.
+`npm run icons` rasterises it into the 64/192/512 set, a padded 512 for Android's maskable
+crop, a 180 for iOS and a `favicon.ico`. The PNGs are committed, so a clone builds without
+running the generator and a change to the mark shows up as a real diff.
 
 ## Layout files
 
@@ -154,6 +217,10 @@ work; CI runs lint without failing on them.
 - **No ASE** from an optical amplifier: unseeded, it outputs nothing.
 - **Selection boxes stay axis-aligned**, so a turned component's outline and drag target are
   its bounding box rather than its artwork.
+- **Installing needs HTTPS and a Chromium or Safari browser.** Firefox runs the app fine but
+  cannot install it, and neither can any host served over plain HTTP.
+- **A layout lives in memory until you save it.** There is no autosave and no recovery of an
+  unsaved bench, which is why an update waits for you to click Reload.
 
 ## License
 

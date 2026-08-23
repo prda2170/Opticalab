@@ -1,0 +1,19 @@
+<!--
+  OpticaLab mark — the same lens-and-axis glyph the title bar draws in App.tsx, at icon
+  scale. Source of truth for every generated PWA icon: `npm run icons` rasterises this.
+
+  Everything is kept inside a 410 px circle (80% of 512), which is the safe zone a
+  maskable icon may be cropped to on Android, so no platform can clip the glyph.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <!-- Plate: the app's own background colour, so the icon matches the window it opens. -->
+  <rect width="512" height="512" rx="96" fill="#0f1117"/>
+
+  <!-- Optical axis, and the perpendicular the components sit on. -->
+  <line x1="70" y1="256" x2="442" y2="256" stroke="#3b82f6" stroke-width="14" stroke-linecap="round" opacity="0.9"/>
+  <line x1="256" y1="86" x2="256" y2="426" stroke="#3b82f6" stroke-width="12" stroke-linecap="round" stroke-dasharray="34,30" opacity="0.75"/>
+
+  <!-- The element itself. -->
+  <circle cx="256" cy="256" r="150" stroke="#3b82f6" stroke-width="26"/>
+  <circle cx="256" cy="256" r="52" fill="#3b82f6" opacity="0.6"/>
+</svg>

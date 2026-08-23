@@ -2,6 +2,7 @@ import React from 'react';
 import { useLayoutStore } from './store/layoutStore';
 import { EditorPanel } from './components/Editor/EditorPanel';
 import { DiagramPanel } from './components/Diagram/DiagramPanel';
+import { UpdatePrompt } from './components/UpdatePrompt';
 
 const App: React.FC = () => {
   const activeTab = useLayoutStore(s => s.activeTab);
@@ -53,6 +54,9 @@ const App: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         {activeTab === 'editor' ? <EditorPanel /> : <DiagramPanel />}
       </div>
+
+      {/* Registers the service worker, and offers the reload when a new build lands. */}
+      <UpdatePrompt />
     </div>
   );
 };

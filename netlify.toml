@@ -1,0 +1,36 @@
+# Netlify build settings. Point Netlify at this repo and it needs nothing else — no
+# dashboard configuration, no build command typed into a web form.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Matches .nvmrc, so a Netlify build uses the same Node as a local one.
+  NODE_VERSION = "24"
+
+# Single page app: every path resolves to the one document. There are no routes today, so
+# this only matters if someone bookmarks a deep link or a future version adds routing.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# The service worker and the manifest must never be served stale, or an install can be
+# pinned to an old build indefinitely. Everything under /assets/ is content-hashed by
+# Vite, so that can be cached hard and forever.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

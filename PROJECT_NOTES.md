@@ -464,6 +464,55 @@ wiring. `recomputeBeams()` forces a re-trace from store state.
 
 ## 6. Change log
 
+### 2026-08-22 — installable as a PWA, for handing to colleagues
+
+Distribution route chosen: **hosted PWA on Netlify**, not signed desktop installers. The app
+has no backend and no native dependency, so an install costs no certificate ($200–400/yr on
+Windows, $99/yr on macOS), no per-platform CI matrix, and no 250 MB download — and updates
+arrive on their own. `electron-builder` stays configured for anyone who wants the native
+shell.
+
+`vite-plugin-pwa@1.3` (which declares `vite: ^8`, so no version risk) plus
+`@vite-pwa/assets-generator`. 13 precached entries, 482 KiB, and the bundle makes **zero**
+runtime network calls — the only URLs in it are XML namespaces and React Flow's error-doc
+links — so offline is complete rather than partial.
+
+**Three decisions worth keeping straight:**
+
+- **`registerType: 'prompt'`, not `autoUpdate`.** A layout exists only in memory until it is
+  saved, so a background reload would discard the bench someone is mid-way through drawing.
+  `UpdatePrompt` offers *Reload* / *Later* instead.
+- **Registration is manual, guarded on `location.protocol`.** The Electron shell loads the
+  same `dist/index.html` over `file://`, where registering a worker throws; the manifest
+  `<link>` 404s there harmlessly.
+- **Two different bases.** Vite keeps `base: './'` — an absolute base breaks the Electron
+  `file://` load, since assets would resolve against the filesystem root — while the plugin
+  is given `base: '/'` and `scope: '/'`, because a service worker's scope cannot be
+  relative. Both are commented in `vite.config.ts`. Hosting under a subpath means changing
+  both.
+
+**Icons now come from one file.** `public/icon.svg` is the lens-and-axis mark the title bar
+draws, at 512 px on the app's own `#0f1117` plate, kept inside the 80% circle Android may
+crop a maskable icon to. `npm run icons` rasterises the 64/192/512 set, a padded maskable
+512, a 180 for iOS and a `favicon.ico`; the PNGs are committed so a clone builds without
+sharp. The old `public/favicon.svg` was the Vite template's purple lightning bolt — deleted,
+since it would otherwise have been what colleagues saw in their Start menus.
+
+**One bug found while verifying:** `registerSW()` defers to `window.onload` unless told
+otherwise, and this effect runs after React mounts, which is usually after load has already
+fired — so nothing registered and nothing cached. Fixed with `immediate: true`. Also set
+`includeManifestIcons: false`, since `globPatterns` already catches the PNGs and the plugin
+was listing the same five URLs twice (18 precache entries → 13).
+
+Verified: clean build emits `sw.js` and `manifest.webmanifest`; the manifest serves with the
+right name and four icons; `sw.js` serves 200 as `text/javascript` with real Workbox content;
+the precache list contains exactly the app, its icons and the manifest; the 512 icon renders
+correctly. **Not** verified here — installability and offline: this embedded browser pane
+refuses `navigator.serviceWorker.register` with "unknown error when fetching the script" even
+though `fetch('/sw.js')` returns 200 with the correct MIME type. Confirm with
+`npm run build && npm run preview` in Chrome or Edge, where DevTools → Application should
+show one activated worker with 13 cached entries.
+
 ### 2026-08-22 — layout files carry a version that means something; dev port aligned
 
 Groundwork for handing the app to other people: their files have to survive the next schema
