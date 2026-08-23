@@ -7,6 +7,7 @@
 // lives in that bench's own store.
 import { create } from 'zustand';
 import { createLayoutStore, type LayoutInit, type LayoutStoreApi } from './layoutStore';
+import type { ClipboardContent } from './clipboard';
 
 /** Range the component-label size slider spans, as a multiple of the base size. */
 export const LABEL_SCALE_MIN = 0.5;
@@ -75,6 +76,16 @@ export interface WorkspaceStore {
    */
   hydrated: boolean;
 
+  /**
+   * Components cut or copied, waiting to be pasted. Workspace state, not document state:
+   * carrying a selection from one tab to another is the point.
+   *
+   * Not persisted with the session — a clipboard that survives a restart would be a
+   * surprise, and the OS clipboard does not work that way either.
+   */
+  clipboard: ClipboardContent | null;
+  setClipboard: (content: ClipboardContent | null) => void;
+
   // ── Preferences: window-wide, deliberately not per document ───────────────
   theme: 'light' | 'dark';
   /** Which view of the active document is showing. Not to be confused with a doc tab. */
@@ -123,11 +134,14 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
   documents: [first],
   activeDocId: first.id,
   hydrated: false,
+  clipboard: null,
 
   theme: 'dark',
   activeView: 'editor',
   showBeamLabels: false,
   labelScale: 1,
+
+  setClipboard: (clipboard) => set({ clipboard }),
 
   setTheme: (theme) => set({ theme }),
   setActiveView: (activeView) => set({ activeView }),

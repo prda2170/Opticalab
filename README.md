@@ -36,6 +36,9 @@ It runs in a browser and installs as a desktop app, offline, with no setup — s
 - **Save means save.** Ctrl+S writes back to the file the layout came from; Ctrl+Shift+S
   picks a new one; Ctrl+O opens a file, in a new tab unless the current one is blank.
   (Firefox and Safari cannot hand back a writable file handle, so Save downloads there.)
+- **Move components between layouts.** Select, Ctrl+C, switch tab, Ctrl+V — the clipboard
+  belongs to the window, so a sub-bench copied from one layout pastes into any other, with
+  its wiring and spacing intact.
 - **Your tabs come back.** The open documents, their viewports and any unsaved changes are
   remembered across a reload, along with which file each one belongs to — so Save still
   writes to the right place after a restart, once you allow it.
@@ -206,10 +209,10 @@ behind each design decision, gotchas that have bitten before, and a change log.
 npm test
 ```
 
-433 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
+456 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
 Gaussian propagation, polarisation, AOM orders and double passes, the angle lattice, face
-trimming, detectors, layout-file loading and migration, the workspace's document rules, the dirty/file-identity logic behind Save, and session
-snapshots. They are plain functions — no DOM, no React —
+trimming, detectors, layout-file loading and migration, the workspace's document rules, the dirty/file-identity logic behind Save, session
+snapshots, and the clipboard. They are plain functions — no DOM, no React —
 which is why they run in about two seconds.
 
 `npm run lint` reports one remaining error, in `NodeIcons.tsx` (a file that exports both

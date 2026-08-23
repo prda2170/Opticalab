@@ -486,6 +486,59 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 
 ## 6. Change log
 
+### 2026-08-23 — cross-document clipboard
+
+Copy a piece of one bench into another. This was half the reason for tabs: two windows can
+already show two layouts side by side, but they cannot move components between them.
+
+**The clipboard is workspace state**, not document state — its whole purpose is to outlive
+the document it came from. It is deliberately *not* part of the session snapshot: a
+clipboard surviving a restart would be a surprise, and no other editor does it.
+
+**What a copy takes** is the selection as xyflow reports it (`node.selected`, so Shift-click
+multi-select works), plus the user-drawn edges whose *both* ends are in that selection — an
+edge to something you did not copy has nowhere to land. Phantom beam endpoints and `auto_`
+routing edges are never taken: the tracer owns those. A power probe *is* taken, since it is
+something the user placed. The node data is deep-copied, so editing the original afterwards
+cannot reach into the clipboard.
+
+**What a paste produces:** fresh ids for every node (pasting back into the source document
+would otherwise collide), the copied edges rewired onto them, everything already on the
+canvas deselected and the arrivals selected so they can be dragged straight away. A locked
+component pastes unlocked — the lock is about *this* bench's layout, and a pasted copy has
+just been moved by definition — and the stale `measured` size is dropped so xyflow sizes the
+copy itself.
+
+**Geometry rule:** pasting into a *different* document keeps the original coordinates,
+because the spacing relative to the rest of the bench is the thing worth preserving; pasting
+back into the *same* document offsets by one breadboard hole, so the copy is visibly
+separate rather than exactly on top of the original.
+
+`insertNodes` and `removeNodes` on the document store both snapshot first, so a paste or a
+cut is one Ctrl+Z. `removeNodes` also drops any wiring that touched what it removed, since
+an edge to a component that is gone would dangle. Both recompute the beams and refresh the
+dirty flag.
+
+Keyboard: Ctrl+C/X/V, added to `FileShortcuts` alongside Ctrl+S/O. Unlike save and open,
+these are only taken **when the bench has focus** — inside a text field they must still copy
+text, and the properties panel is full of fields. The toolbar carries Copy/Cut/Paste buttons
+with live counts, since a cross-tab clipboard is not discoverable otherwise.
+
+Verified in the running app: three components built in one tab, two selected with
+Shift-click, Ctrl+C (the button then reads `Copy 2 components`, and Paste reads
+`Paste (2) — from any tab`), a new tab opened, Ctrl+V pastes both with fresh `paste_*` ids,
+a second Ctrl+V gives four nodes with all ids distinct, one Ctrl+Z takes a paste back
+whole, Ctrl+X removes the selection while leaving it on the clipboard, and the source
+document still has its three components.
+
+23 tests added (`src/store/__tests__/clipboard.test.ts`): what a copy takes and refuses,
+the deep copy, edge filtering both ways, fresh ids and rewiring, the two geometry rules,
+selection handling, locked and measured handling, pasting twice without collision, and then
+through real document stores — pasting between two documents, the paste being traced, the
+receiving document going dirty while the source stays clean, undo in one step for both
+paste and cut, cut dropping dangling wires, and removing nothing doing nothing.
+**456 tests total.**
+
 ### 2026-08-23 — session restore (tabs, phase 5)
 
 The open tabs survive a reload. One window holding several benches makes a refresh

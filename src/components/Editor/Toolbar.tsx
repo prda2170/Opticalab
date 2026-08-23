@@ -3,6 +3,7 @@ import React from 'react';
 import { useLayout } from '../../store/layoutContext';
 import { useWorkspace, LABEL_SCALE_MIN, LABEL_SCALE_MAX } from '../../store/workspaceStore';
 import { useLayoutFile } from '../../store/useLayoutFile';
+import { useClipboard } from '../../store/useClipboard';
 
 /**
  * A toolbar button. At module scope, not inside `Toolbar`: a component defined during
@@ -38,6 +39,7 @@ export const Toolbar: React.FC = () => {
   const labelScale       = useWorkspace(s => s.labelScale);
   const setLabelScale    = useWorkspace(s => s.setLabelScale);
   const { dirty, canSaveInPlace, save, saveAs, open } = useLayoutFile();
+  const { selectedCount, clipboardCount, copy, cut, paste } = useClipboard();
 
   return (
     <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 border-b border-gray-700">
@@ -55,6 +57,33 @@ export const Toolbar: React.FC = () => {
       </Btn>
       <Btn onClick={() => { void saveAs(); }} title="Save to a different file (Ctrl+Shift+S)">💾 Save As</Btn>
       <Btn onClick={() => { void open(); }} title="Open a layout file (Ctrl+O)">📂 Open</Btn>
+      <div className="w-px h-5 bg-gray-600 mx-1" />
+      {/* The clipboard belongs to the window, so a copy here pastes into any other tab. */}
+      <Btn
+        onClick={copy}
+        disabled={selectedCount === 0}
+        title={selectedCount === 0
+          ? 'Select components to copy (Ctrl+C)'
+          : `Copy ${selectedCount} component${selectedCount === 1 ? '' : 's'} (Ctrl+C)`}
+      >
+        ⧉ Copy
+      </Btn>
+      <Btn
+        onClick={cut}
+        disabled={selectedCount === 0}
+        title={selectedCount === 0 ? 'Select components to cut (Ctrl+X)' : `Cut ${selectedCount} (Ctrl+X)`}
+      >
+        ✂ Cut
+      </Btn>
+      <Btn
+        onClick={paste}
+        disabled={clipboardCount === 0}
+        title={clipboardCount === 0
+          ? 'Nothing copied yet (Ctrl+V)'
+          : `Paste ${clipboardCount} component${clipboardCount === 1 ? '' : 's'} — from any tab (Ctrl+V)`}
+      >
+        📋 Paste{clipboardCount > 0 ? ` (${clipboardCount})` : ''}
+      </Btn>
       <div className="w-px h-5 bg-gray-600 mx-1" />
       <Btn
         onClick={toggleBeamLabels}

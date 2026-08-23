@@ -99,6 +99,15 @@ export interface LayoutState {
   // Update a single node's data (increments canvasVersion so EditorCanvas reloads)
   updateNodeData: (id: string, data: Partial<OpticalNodeData>) => void;
 
+  /**
+   * Add components and wiring — a paste. Snapshots first, so one Ctrl+Z takes it back, and
+   * deselects everything already on the canvas so only the new arrivals are selected.
+   */
+  insertNodes: (nodes: Node<OpticalNodeData>[], edges?: Edge<BeamEdgeData>[]) => void;
+
+  /** Remove components and any wiring that touched them — a cut. Also undoable. */
+  removeNodes: (ids: string[]) => void;
+
   // Undo/redo
   undo: () => void;
   redo: () => void;
@@ -218,6 +227,37 @@ export function createLayoutStore(initial?: LayoutInit): LayoutStoreApi {
             n.id === id ? { ...n, data: { ...n.data, ...data } as OpticalNodeData } : n,
           ),
           canvasVersion: state.canvasVersion + 1, // signal EditorCanvas to reload
+        }));
+        get().recomputeBeams();
+        refreshDirty();
+      },
+
+      insertNodes: (incoming, incomingEdges = []) => {
+        const { nodes, edges } = get();
+        get().saveSnapshot(nodes, edges);
+        set(state => ({
+          nodes: [
+            ...state.nodes.map(n => ({ ...n, selected: false })),
+            ...incoming,
+          ],
+          edges: [...state.edges, ...incomingEdges],
+          canvasVersion: state.canvasVersion + 1,
+        }));
+        get().recomputeBeams();
+        refreshDirty();
+      },
+
+      removeNodes: (ids) => {
+        if (ids.length === 0) return;
+        const { nodes, edges } = get();
+        get().saveSnapshot(nodes, edges);
+        const gone = new Set(ids);
+        set(state => ({
+          nodes: state.nodes.filter(n => !gone.has(n.id)),
+          // An edge to a component that is gone would dangle.
+          edges: state.edges.filter(e => !gone.has(e.source) && !gone.has(e.target)),
+          selectedNodeId: gone.has(state.selectedNodeId ?? '') ? null : state.selectedNodeId,
+          canvasVersion: state.canvasVersion + 1,
         }));
         get().recomputeBeams();
         refreshDirty();
