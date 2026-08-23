@@ -484,6 +484,67 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 
 ## 6. Change log
 
+### 2026-08-22 — file identity per document (tabs, phase 3)
+
+What makes tabs safe: each document knows which file it belongs to, whether it differs from
+it, and asks before losing anything.
+
+**Save writes in place.** A document carries a `FileSystemFileHandle` — obtained from
+`showOpenFilePicker` on Open or `showSaveFilePicker` on Save As — so **Save** (Ctrl+S)
+writes straight back to the file with no dialog, and **Save As** (Ctrl+Shift+S) asks and
+adopts the new file for later saves. Every save used to open a picker, because there was
+nowhere to keep a handle. Firefox and Safari hand back no handle, so Save there falls back
+to a download, which `saveTextAs` already did.
+
+**Open (Ctrl+O) no longer overwrites.** A file lands in the current document only when it is
+blank and unsaved; otherwise it opens in a new tab. It also carries the handle in, so a
+document opened from a file can be saved back to it immediately.
+
+**Dirty is a fingerprint, not a flag.** `layoutFingerprint()` hashes the layout *as it would
+be written*, and the document store keeps the fingerprint of the last save. Two properties
+a boolean set by each action could not have:
+
+- clicking a component is not an edit (the canvas syncs on selection changes too), and
+- undoing back to the saved state clears the flag again, because the file and the document
+  genuinely agree.
+
+**Saved files got smaller and more honest.** `layoutToJSON` now whitelists the four fields
+that *are* a node — `id`, `type`, `position`, `data` — and the six that are an edge.
+xyflow's `selected`, `dragging`, `draggable` and `measured` were all being written out:
+noise, stale geometry, and the reason a fingerprint over raw nodes would have flagged a
+click. Re-saving the D1 bench with one component *added* came out at 17,979 bytes against
+the original 23,634. No version bump: the dropped fields are recomputed on mount, so old
+files still load and new ones simply omit them.
+
+**Closing asks only when something would be lost** — the phase-2 guard counted components,
+this one consults `dirty` — and `beforeunload` vetoes leaving the page while any document
+is unsaved, which matters more now that one window holds several benches.
+
+`useLayoutFile` is where the two stores meet: content from the document, file identity from
+the workspace. The toolbar buttons and `FileShortcuts` share it, so they cannot drift.
+`FileShortcuts` sits inside `LayoutContext` but outside the panels, so Ctrl+S works on the
+Diagram tab too. Ctrl+S/Ctrl+Shift+S/Ctrl+O *are* taken from the browser with
+`preventDefault` — unlike the tab shortcuts, which had to be Alt-based.
+
+**Lint is down from 7 errors to 1.** Six of the seven were one cause: `Btn` was defined
+*inside* `Toolbar`, so it was a new component type on every render and React remounted
+every button on every keystroke. Adding a seventh button made it an eighth error, which was
+the nudge to hoist it. Only `NodeIcons.tsx`'s mixed-exports warning remains, and the CI
+lint step could be made blocking once that goes.
+
+Verified in the running app against `Layouts/D1_Layout.json`, with the File System Access
+API stubbed by a handle that records its writes: Open names the tab, loads 41 nodes clean,
+and leaves Save disabled; dropping a component raises the dot and turns Save into `Save*`;
+Ctrl+S writes 42 nodes back to `D1_Layout.json` with exactly the four node fields and clears
+the dot; Save As writes again; a clean document closes without a question (and being the
+last one, is replaced by a fresh `Untitled`); a dirty one asks by name and declining keeps
+it; `beforeunload` is vetoed while unsaved.
+
+20 tests added (`src/store/__tests__/dirty.test.ts`): what a file does and does not contain,
+fingerprint insensitivity to transient state and sensitivity to real edits, every dirty
+transition including the selection-only and auto-edge non-cases and the undo-to-saved case,
+and file identity per document. **411 tests total.**
+
 ### 2026-08-22 — document tabs (phase 2)
 
 Several layouts open at once, one tab each. `DocumentTabs` sits between the title bar and

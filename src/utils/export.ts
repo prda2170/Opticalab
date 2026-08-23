@@ -49,6 +49,25 @@ export interface LoadedLayout {
   notes: string[];
 }
 
+/**
+ * The four fields that *are* the layout. Everything else xyflow hangs on a node —
+ * `selected`, `dragging`, `measured`, `draggable` — is transient state it recomputes on
+ * mount, and writing it out both bloated the file and made a mere click on a component
+ * look like an edit. Whitelisted rather than blacklisted, so a future xyflow field cannot
+ * quietly start leaking into saved files.
+ */
+function layoutNode(node: Node<OpticalNodeData>) {
+  return { id: node.id, type: node.type, position: node.position, data: node.data };
+}
+
+/** The user's own wiring, without the beam state the tracer rebuilds every pass. */
+function layoutEdge(edge: Edge<BeamEdgeData>) {
+  return {
+    id: edge.id, source: edge.source, target: edge.target,
+    sourceHandle: edge.sourceHandle, targetHandle: edge.targetHandle, type: edge.type,
+  };
+}
+
 export function layoutToJSON(
   nodes: Node<OpticalNodeData>[],
   edges: Edge<BeamEdgeData>[],
@@ -57,12 +76,24 @@ export function layoutToJSON(
     {
       version: LAYOUT_VERSION,
       metadata: { created: new Date().toISOString(), app: 'OpticaLab' },
-      nodes,
-      edges,
+      nodes: nodes.map(layoutNode),
+      edges: edges.map(layoutEdge),
     },
     null,
     2,
   );
+}
+
+/**
+ * Fingerprint of the layout as it would be *written* — so it ignores selection, drag and
+ * measurement, and two states that would save identically compare equal. What the dirty
+ * flag is built on.
+ */
+export function layoutFingerprint(
+  nodes: Node<OpticalNodeData>[],
+  edges: Edge<BeamEdgeData>[],
+): string {
+  return JSON.stringify({ n: nodes.map(layoutNode), e: edges.map(layoutEdge) });
 }
 
 /** `[major, minor]`, defaulting a missing or unparseable version to the first release. */
@@ -289,10 +320,101 @@ interface SaveFilePicker {
   showSaveFilePicker(options?: {
     suggestedName?: string;
     types?: { description?: string; accept: Record<string, string[]> }[];
-  }): Promise<{ createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }> }>;
+  }): Promise<FileSystemFileHandle>;
+}
+
+/** Minimal shape of the open picker, for the same reason as above. */
+interface OpenFilePicker {
+  showOpenFilePicker(options?: {
+    multiple?: boolean;
+    types?: { description?: string; accept: Record<string, string[]> }[];
+  }): Promise<FileSystemFileHandle[]>;
 }
 
 export type SaveOutcome = 'saved' | 'cancelled' | 'downloaded';
+
+/** What a save attempt did, and the handle to reuse if it produced one. */
+export interface SaveResult {
+  outcome: SaveOutcome;
+  /** Present only where the File System Access API is; lets the next Save write in place. */
+  handle?: FileSystemFileHandle;
+  /** The name the file ended up with, for the tab. */
+  name?: string;
+}
+
+export interface OpenedFile {
+  text: string;
+  name: string;
+  /** Null in Firefox and Safari: they can read a file but not hand back a writable handle. */
+  handle: FileSystemFileHandle | null;
+}
+
+/**
+ * Ask for a layout file and read it.
+ *
+ * Uses the File System Access picker where it exists, because that returns a *handle* —
+ * which is what lets Save write straight back to the file the user opened instead of
+ * asking again. Falls back to a hidden `<input type="file">`, which can read but never
+ * write, so those browsers get Save-as-download.
+ *
+ * Resolves to null when the user dismisses the dialog.
+ */
+export async function openLayoutFile(): Promise<OpenedFile | null> {
+  const picker = window as unknown as Partial<OpenFilePicker>;
+  if (typeof picker.showOpenFilePicker === 'function') {
+    try {
+      const [handle] = await picker.showOpenFilePicker({
+        multiple: false,
+        types: [{ description: 'OpticaLab layout', accept: { 'application/json': ['.json'] } }],
+      });
+      if (!handle) return null;
+      const file = await handle.getFile();
+      return { text: await file.text(), name: file.name, handle };
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return null;
+      console.error('Open dialog failed, falling back to a file input:', err);
+    }
+  }
+
+  return new Promise<OpenedFile | null>((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    // A dismissed file input fires no event at all in some browsers, so this promise may
+    // simply never settle. Nothing is waiting on it but the click.
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return resolve(null);
+      resolve({ text: await file.text(), name: file.name, handle: null });
+    };
+    input.click();
+  });
+}
+
+/**
+ * Write to a handle the user has already chosen — the whole point of keeping one.
+ *
+ * Permission can lapse, notably for a handle restored from a previous session, so it is
+ * checked and re-requested; a refusal throws rather than silently doing nothing.
+ */
+export async function writeToHandle(handle: FileSystemFileHandle, content: string): Promise<void> {
+  const h = handle as FileSystemFileHandle & {
+    queryPermission?: (d: { mode: 'readwrite' }) => Promise<PermissionState>;
+    requestPermission?: (d: { mode: 'readwrite' }) => Promise<PermissionState>;
+  };
+  if (h.queryPermission) {
+    let state = await h.queryPermission({ mode: 'readwrite' });
+    if (state === 'prompt' && h.requestPermission) {
+      state = await h.requestPermission({ mode: 'readwrite' });
+    }
+    if (state !== 'granted') {
+      throw new Error(`OpticaLab may not write to "${handle.name}". Use Save As to choose a file.`);
+    }
+  }
+  const writable = await handle.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
 
 /**
  * Write text to a file the user picks, showing a real save dialog so they choose the
@@ -304,7 +426,7 @@ export async function saveTextAs(
   suggestedName: string,
   description: string,
   accept: Record<string, string[]>,
-): Promise<SaveOutcome> {
+): Promise<SaveResult> {
   const picker = window as unknown as Partial<SaveFilePicker>;
   if (typeof picker.showSaveFilePicker === 'function') {
     try {
@@ -312,18 +434,16 @@ export async function saveTextAs(
         suggestedName,
         types: [{ description, accept }],
       });
-      const writable = await handle.createWritable();
-      await writable.write(content);
-      await writable.close();
-      return 'saved';
+      await writeToHandle(handle, content);
+      return { outcome: 'saved', handle, name: handle.name };
     } catch (err) {
       // Dismissing the dialog is a normal outcome, not a failure to report.
-      if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled';
+      if (err instanceof DOMException && err.name === 'AbortError') return { outcome: 'cancelled' };
       console.error('Save dialog failed, falling back to download:', err);
     }
   }
   downloadText(content, suggestedName, Object.keys(accept)[0] ?? 'application/octet-stream');
-  return 'downloaded';
+  return { outcome: 'downloaded', name: suggestedName };
 }
 
 // Download a text file

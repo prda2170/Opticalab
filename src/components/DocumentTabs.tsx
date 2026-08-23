@@ -3,15 +3,38 @@
 // Not to be confused with the Editor/Diagram pair in the title bar — those are two *views*
 // of whichever document is active, which is why that state is called `activeView`.
 //
-// Closing asks first when a document has anything on its canvas, because a layout lives
-// only in memory until it is saved. That is a stand-in: once documents track a dirty flag
-// against their file (phase 3), the question should be asked only when there is something
-// unsaved, and a saved-and-unchanged document should close without a word.
-import React, { useEffect } from 'react';
-import { useWorkspace } from '../store/workspaceStore';
+// Closing asks only when something would actually be lost: a document that matches the
+// file it came from closes without a word, and one that does not says so by name. The same
+// question is asked of the browser on unload, since a layout lives only in memory until it
+// is written somewhere.
+import React, { useEffect, useSyncExternalStore } from 'react';
+import { useWorkspace, type OpenDocument } from '../store/workspaceStore';
 
 /** Alt-based, because the browser owns Ctrl+T and Ctrl+W and will not give them up. */
 const SHORTCUT_HINT = 'Alt+T new · Alt+W close · Alt+1…9 switch';
+
+/**
+ * The unsaved marker.
+ *
+ * Its own component subscribed to its own document's store, so a tab's dot tracks *that*
+ * document — the tab strip itself lives outside any LayoutContext and cannot use
+ * `useLayout`, and re-rendering the whole strip on every keystroke in any document would
+ * be wasteful besides.
+ */
+const DirtyDot: React.FC<{ doc: OpenDocument }> = ({ doc }) => {
+  const dirty = useSyncExternalStore(
+    doc.store.subscribe,
+    () => doc.store.getState().dirty,
+  );
+  if (!dirty) return null;
+  return (
+    <span
+      title="Unsaved changes"
+      aria-label="unsaved"
+      className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"
+    />
+  );
+};
 
 export const DocumentTabs: React.FC = () => {
   const documents    = useWorkspace(s => s.documents);
@@ -22,17 +45,30 @@ export const DocumentTabs: React.FC = () => {
 
   const isDark = theme === 'dark';
 
-  /** Ask before dropping a bench that has anything on it. */
+  /** Ask before dropping unsaved work — and only then. */
   const closeWithGuard = (id: string) => {
     const { documents: docs, closeDocument } = useWorkspace.getState();
     const doc = docs.find(d => d.id === id);
     if (!doc) return;
-    const count = doc.store.getState().nodes.length;
-    if (count > 0 && !window.confirm(`Close "${doc.name}"? It has ${count} component${count === 1 ? '' : 's'} and is not saved anywhere.`)) {
+    if (doc.store.getState().dirty
+        && !window.confirm(`Close "${doc.name}"? Its changes have not been saved.`)) {
       return;
     }
     closeDocument(id);
   };
+
+  // Leaving the page loses every unsaved document at once, so ask the browser to ask.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const unsaved = useWorkspace.getState().documents.filter(d => d.store.getState().dirty);
+      if (unsaved.length === 0) return;
+      e.preventDefault();
+      // Browsers show their own wording; the string only matters to very old ones.
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
 
   // Keyboard shortcuts, ignored while typing so Alt+W in a name field is not a close.
   useEffect(() => {
@@ -79,6 +115,7 @@ export const DocumentTabs: React.FC = () => {
             }`}
           >
             <span className="max-w-[14rem] overflow-hidden text-ellipsis">{doc.name}</span>
+            <DirtyDot doc={doc} />
             <button
               onClick={e => { e.stopPropagation(); closeWithGuard(doc.id); }}
               title="Close"

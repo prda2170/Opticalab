@@ -26,6 +26,12 @@ export interface OpenDocument {
   id: string;
   /** Shown on the tab — the file's name once saved, `UNTITLED` before that. */
   name: string;
+  /**
+   * The file this document reads from and writes to, where the browser will give us one.
+   * Null until saved, and always null in Firefox and Safari, which can read a file but not
+   * hand back a writable handle — there, Save falls back to a download.
+   */
+  handle: FileSystemFileHandle | null;
   /** This document's own state. Not serialisable; restored sessions rebuild it. */
   store: LayoutStoreApi;
 }
@@ -40,8 +46,9 @@ function documentId(): string {
 export function newDocument(
   name = UNTITLED,
   initial?: { nodes?: Node<OpticalNodeData>[]; edges?: Edge<BeamEdgeData>[] },
+  handle: FileSystemFileHandle | null = null,
 ): OpenDocument {
-  return { id: documentId(), name, store: createLayoutStore(initial) };
+  return { id: documentId(), name, handle, store: createLayoutStore(initial) };
 }
 
 interface WorkspaceStore {
@@ -73,6 +80,8 @@ interface WorkspaceStore {
   setActiveDoc: (id: string) => void;
   /** Rename a tab — what Save/Load use to show which file a document came from. */
   renameDocument: (id: string, name: string) => void;
+  /** Record which file a document belongs to, after an open or a Save As. */
+  setDocumentFile: (id: string, file: { name: string; handle: FileSystemFileHandle | null }) => void;
 }
 
 const first = newDocument();
@@ -116,6 +125,10 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
 
   renameDocument: (id, name) => set(s => ({
     documents: s.documents.map(d => (d.id === id ? { ...d, name } : d)),
+  })),
+
+  setDocumentFile: (id, file) => set(s => ({
+    documents: s.documents.map(d => (d.id === id ? { ...d, name: file.name, handle: file.handle } : d)),
   })),
 }));
 

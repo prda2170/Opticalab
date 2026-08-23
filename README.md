@@ -30,8 +30,12 @@ It runs in a browser and installs as a desktop app, offline, with no setup — s
   own path.
 - **Angles on a lattice.** Components sit on 15° steps, mirror surfaces on 7.5° (reflection
   doubles the surface angle, so the finer grain is what makes every 15° beam reachable).
-- **Several layouts at once.** One tab per open document, each with its own undo history,
-  selection and viewport. Alt+T opens one, Alt+1…9 switches, Alt+W closes.
+- **Several layouts at once.** One tab per open document, each with its own file, undo
+  history, selection and viewport. Alt+T opens one, Alt+1…9 switches, Alt+W closes. A dot
+  marks unsaved changes, and closing only asks when there are some.
+- **Save means save.** Ctrl+S writes back to the file the layout came from; Ctrl+Shift+S
+  picks a new one; Ctrl+O opens a file, in a new tab unless the current one is blank.
+  (Firefox and Safari cannot hand back a writable file handle, so Save downloads there.)
 - **Two views of one layout.** An editor canvas for building, and a clean read-only diagram
   for figures — exportable as SVG or PNG, with components as native SVG so it opens in
   Illustrator or Inkscape.
@@ -144,7 +148,9 @@ running the generator and a change to the mark shows up as a real diff.
 ## Layout files
 
 Save writes a JSON file containing every node and edge, stamped with a schema version
-(`LAYOUT_VERSION` in `src/utils/export.ts`).
+(`LAYOUT_VERSION` in `src/utils/export.ts`). Only the layout goes in: the transient state
+xyflow keeps on a node — selection, drag, measured size — is left out, since it is
+recomputed on load.
 
 Loading checks that version and migrates forward. Fields have been renamed more than once,
 so an older file is brought up to date rather than read as though the field were simply
@@ -197,14 +203,13 @@ behind each design decision, gotchas that have bitten before, and a change log.
 npm test
 ```
 
-391 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
+411 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
 Gaussian propagation, polarisation, AOM orders and double passes, the angle lattice, face
-trimming, detectors, layout-file loading and migration, and the workspace's document rules. They are plain functions — no DOM, no React —
+trimming, detectors, layout-file loading and migration, the workspace's document rules, and the dirty/file-identity logic behind Save. They are plain functions — no DOM, no React —
 which is why they run in about two seconds.
 
-`npm run lint` currently reports 7 pre-existing errors in `Toolbar.tsx` and `NodeIcons.tsx`
-(inline component definitions and mixed exports). They are cosmetic and predate the current
-work; CI runs lint without failing on them.
+`npm run lint` reports one remaining error, in `NodeIcons.tsx` (a file that exports both
+components and a helper, which breaks fast refresh). CI runs lint without failing on it.
 
 ## Known limitations
 

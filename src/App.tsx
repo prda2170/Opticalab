@@ -5,6 +5,7 @@ import { EditorPanel } from './components/Editor/EditorPanel';
 import { DiagramPanel } from './components/Diagram/DiagramPanel';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { DocumentTabs } from './components/DocumentTabs';
+import { FileShortcuts } from './components/FileShortcuts';
 
 const App: React.FC = () => {
   const activeView = useWorkspace(s => s.activeView);
@@ -65,6 +66,9 @@ const App: React.FC = () => {
           hidden or reused canvas is how you end up with no edges at all (PROJECT_NOTES §5). */}
       <div className="flex-1 overflow-hidden">
         <LayoutContext.Provider value={doc.store}>
+          {/* Outside the keyed subtree: the shortcuts should not be torn down and rebuilt
+              every time the view or the document changes. */}
+          <FileShortcuts />
           <div key={doc.id} className="h-full">
             {activeView === 'editor' ? <EditorPanel /> : <DiagramPanel />}
           </div>

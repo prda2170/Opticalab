@@ -2,77 +2,59 @@
 import React from 'react';
 import { useLayout } from '../../store/layoutContext';
 import { useWorkspace, LABEL_SCALE_MIN, LABEL_SCALE_MAX } from '../../store/workspaceStore';
-import { useDocumentName } from '../../store/useDocumentName';
-import { layoutToJSON, layoutFromJSON, saveTextAs } from '../../utils/export';
+import { useLayoutFile } from '../../store/useLayoutFile';
+
+/**
+ * A toolbar button. At module scope, not inside `Toolbar`: a component defined during
+ * render is a *new type* on every render, so React unmounts and remounts every button on
+ * every keystroke — which is what `react-hooks/static-components` was flagging seven times
+ * in this file.
+ */
+const Btn: React.FC<{
+  onClick: () => void;
+  disabled?: boolean;
+  title: string;
+  children: React.ReactNode;
+}> = ({ onClick, disabled, title, children }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    title={title}
+    className="px-2 py-1 rounded text-xs text-gray-300 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+  >
+    {children}
+  </button>
+);
 
 export const Toolbar: React.FC = () => {
   const undo             = useLayout(s => s.undo);
   const redo             = useLayout(s => s.redo);
   const history          = useLayout(s => s.history);
   const future           = useLayout(s => s.future);
-  const loadLayout       = useLayout(s => s.loadLayout);
-  const getLayout        = useLayout(s => s.getLayout);
   const theme            = useWorkspace(s => s.theme);
   const setTheme         = useWorkspace(s => s.setTheme);
   const showBeamLabels   = useWorkspace(s => s.showBeamLabels);
   const toggleBeamLabels = useWorkspace(s => s.toggleBeamLabels);
   const labelScale       = useWorkspace(s => s.labelScale);
   const setLabelScale    = useWorkspace(s => s.setLabelScale);
-  const rename           = useDocumentName();
-
-  const handleSave = async () => {
-    const { nodes, edges } = getLayout();
-    await saveTextAs(
-      layoutToJSON(nodes, edges),
-      'opticalab_layout.json',
-      'OpticaLab layout',
-      { 'application/json': ['.json'] },
-    );
-  };
-
-  const handleLoad = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      try {
-        const { nodes, edges, notes } = layoutFromJSON(text);
-        loadLayout({ nodes, edges });
-        // The tab takes the file's name, so a row of tabs is readable.
-        rename(file.name.replace(/\.json$/i, ''));
-        // Every note means the file and what is now on screen differ — a migrated field
-        // or a component left out — so say so rather than letting it pass silently.
-        if (notes.length > 0) {
-          alert(`Layout loaded, with changes:\n\n• ${notes.join('\n\n• ')}`);
-        }
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'That file could not be read.');
-      }
-    };
-    input.click();
-  };
-
-  const Btn: React.FC<{ onClick: () => void; disabled?: boolean; title: string; children: React.ReactNode }> = ({ onClick, disabled, title, children }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="px-2 py-1 rounded text-xs text-gray-300 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-    >
-      {children}
-    </button>
-  );
+  const { dirty, canSaveInPlace, save, saveAs, open } = useLayoutFile();
 
   return (
     <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 border-b border-gray-700">
       <Btn onClick={undo} disabled={history.length === 0} title="Undo (Ctrl+Z)">↩ Undo</Btn>
       <Btn onClick={redo} disabled={future.length === 0} title="Redo (Ctrl+Y)">↪ Redo</Btn>
       <div className="w-px h-5 bg-gray-600 mx-1" />
-      <Btn onClick={handleSave} title="Save layout to JSON">💾 Save</Btn>
-      <Btn onClick={handleLoad} title="Load layout from JSON">📂 Load</Btn>
+      <Btn
+        onClick={() => { void save(); }}
+        disabled={!dirty && canSaveInPlace}
+        title={canSaveInPlace
+          ? 'Save to this layout\u2019s own file (Ctrl+S)'
+          : 'Choose a file to save to (Ctrl+S)'}
+      >
+        {dirty ? '💾 Save*' : '💾 Save'}
+      </Btn>
+      <Btn onClick={() => { void saveAs(); }} title="Save to a different file (Ctrl+Shift+S)">💾 Save As</Btn>
+      <Btn onClick={() => { void open(); }} title="Open a layout file (Ctrl+O)">📂 Open</Btn>
       <div className="w-px h-5 bg-gray-600 mx-1" />
       <Btn
         onClick={toggleBeamLabels}

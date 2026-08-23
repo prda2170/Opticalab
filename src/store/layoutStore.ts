@@ -17,6 +17,7 @@ import type { OpticalNodeData, BeamEdgeData } from '../types/components';
 import { isOpticalNode } from '../types/components';
 import type { BeamState, BeamSegment } from '../types/beam';
 import { autoRoute } from '../physics/autoRoute';
+import { layoutFingerprint } from '../utils/export';
 
 // Fingerprint of everything the beam trace depends on: node data *and* positions
 // (beam geometry moves when nodes move) plus user-drawn wiring.
@@ -56,6 +57,16 @@ export interface LayoutState {
   selectedNodeId: string | null;
 
   /**
+   * True when this document differs from the file it was last saved to (or from empty, for
+   * a document that has never been saved). Drives the tab's dot and the close prompt.
+   *
+   * Compared by *fingerprint*, not by a flag flipped on every action, so it has two
+   * properties a flag would not: clicking a component does not count as an edit, and
+   * undoing back to the saved state clears it again.
+   */
+  dirty: boolean;
+
+  /**
    * Where this document's canvas is scrolled and zoomed to, or null before it has been
    * looked at. Per document, and load-bearing: switching tabs unmounts the canvas, so
    * without this every switch would re-frame the layout with `fitView`. Session state, not
@@ -85,6 +96,8 @@ export interface LayoutState {
 
   setSelectedNode: (id: string | null) => void;
   setViewport: (viewport: { x: number; y: number; zoom: number }) => void;
+  /** Called after a successful write: this state is now what the file holds. */
+  markSaved: () => void;
 
   // Persistence
   loadLayout: (data: { nodes: Node<OpticalNodeData>[]; edges: Edge<BeamEdgeData>[] }) => void;
@@ -129,6 +142,19 @@ export function createLayoutStore(
     const startNodes = initial?.nodes ?? [];
     const startEdges = initial?.edges ?? [];
 
+    /**
+     * Fingerprint of the state the file holds. A document opened from a file starts at that
+     * file's content; a new document starts at empty, which is what "unchanged" means for
+     * something never saved.
+     */
+    let savedFingerprint = layoutFingerprint(startNodes, startEdges);
+
+    /** Recompute `dirty` from the current content. Cheap, and called only on mutation. */
+    const refreshDirty = () => {
+      const { nodes, edges } = get();
+      set({ dirty: layoutFingerprint(nodes, edges) !== savedFingerprint });
+    };
+
     return {
       nodes: startNodes,
       edges: startEdges,
@@ -138,6 +164,7 @@ export function createLayoutStore(
       nodeArrivals: new Map(),
       warnings: new Map(),
       selectedNodeId: null,
+      dirty: false,
       viewport: null,
       canvasVersion: 0,
       history: [],
@@ -147,7 +174,11 @@ export function createLayoutStore(
         // Only user-drawn edges are persisted; auto_ routing edges are always
         // re-derived by the engine and never stored or saved.
         const userEdges = edges.filter(e => !e.id.startsWith('auto_'));
-        set({ nodes, edges: userEdges });
+        set({
+          nodes,
+          edges: userEdges,
+          dirty: layoutFingerprint(nodes, userEdges) !== savedFingerprint,
+        });
         trace(nodes, userEdges);
       },
 
@@ -166,6 +197,7 @@ export function createLayoutStore(
           canvasVersion: state.canvasVersion + 1, // signal EditorCanvas to reload
         }));
         get().recomputeBeams();
+        refreshDirty();
       },
 
       undo: () => {
@@ -180,6 +212,7 @@ export function createLayoutStore(
           canvasVersion: state.canvasVersion + 1,
         }));
         get().recomputeBeams();
+        refreshDirty();
       },
 
       redo: () => {
@@ -194,17 +227,27 @@ export function createLayoutStore(
           canvasVersion: state.canvasVersion + 1,
         }));
         get().recomputeBeams();
+        refreshDirty();
       },
 
       setSelectedNode: (id) => set({ selectedNodeId: id }),
       setViewport: (viewport) => set({ viewport }),
 
+      markSaved: () => {
+        const { nodes, edges } = get();
+        savedFingerprint = layoutFingerprint(nodes, edges);
+        set({ dirty: false });
+      },
+
       loadLayout: (data) => {
+        // Loading defines a new baseline: the document now matches what is on disk.
+        savedFingerprint = layoutFingerprint(data.nodes, data.edges);
         set((state) => ({
           nodes: data.nodes,
           edges: data.edges,
           history: [],
           future: [],
+          dirty: false,
           canvasVersion: state.canvasVersion + 1,
         }));
         get().recomputeBeams();
