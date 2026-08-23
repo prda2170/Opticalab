@@ -1,0 +1,105 @@
+{
+  "version": "1.1",
+  "metadata": {
+    "created": "2026-08-23T08:35:50.366Z",
+    "app": "OpticaLab"
+  },
+  "nodes": [
+    {
+      "id": "node_1787473616275_1",
+      "type": "optical",
+      "position": {
+        "x": 170.4675630064882,
+        "y": 186.54936840923904
+      },
+      "data": {
+        "name": "IPS D2 Laser",
+        "category": "source",
+        "type": "laser_source",
+        "wavelength": 780,
+        "outputPower": 100,
+        "polarization": "H",
+        "waist": 800,
+        "mSquared": 1,
+        "current": 150,
+        "showLabel": true
+      }
+    },
+    {
+      "id": "node_1787473668538_2",
+      "type": "optical",
+      "position": {
+        "x": 275.11079090524584,
+        "y": 197.54936840923904
+      },
+      "data": {
+        "name": "IOT-5-780-VLP",
+        "category": "conditioning",
+        "type": "isolator",
+        "transmission": 95,
+        "isolation": 40,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "showLabel": true
+      }
+    },
+    {
+      "id": "node_1787473712434_3",
+      "type": "optical",
+      "position": {
+        "x": 357.8623885548828,
+        "y": 196.78314991248314
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "node_1787473718140_4",
+      "type": "optical",
+      "position": {
+        "x": 357.8623885548828,
+        "y": 117.4084057166911
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        }
+      }
+    },
+    {
+      "id": "node_1787473796273_8",
+      "type": "optical",
+      "position": {
+        "x": 434.39032896485,
+        "y": 117.4084057166911
+      },
+      "data": {
+        "name": "TA",
+        "category": "source",
+        "type": "optical_amplifier",
+        "outputPower": 1000,
+        "current": 2000,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
+      }
+    }
+  ],
+  "edges": []
+}

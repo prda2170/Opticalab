@@ -1,7 +1,7 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {
-    "created": "2026-08-22T18:31:07.328Z",
+    "created": "2026-08-23T08:35:58.533Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -22,13 +22,7 @@
         "waist": 800,
         "mSquared": 1,
         "showLabel": true
-      },
-      "measured": {
-        "width": 90,
-        "height": 80
-      },
-      "selected": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900340188_2",
@@ -38,7 +32,7 @@
         "y": 196.8249969482422
       },
       "data": {
-        "name": "ISO",
+        "name": "IOT-5-780-VLP",
         "category": "conditioning",
         "type": "isolator",
         "transmission": 80,
@@ -48,14 +42,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 44,
-        "height": 58
-      },
-      "draggable": true,
-      "selected": false,
-      "dragging": false
+      }
     },
     {
       "id": "node_1786900376018_3",
@@ -74,14 +61,7 @@
           "dy": 0
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 32,
-        "height": 72
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900380943_4",
@@ -99,14 +79,7 @@
           "dy": 0
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900411834_5",
@@ -129,14 +102,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 60,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900419029_6",
@@ -155,14 +121,7 @@
           "dx": 1,
           "dy": 0
         }
-      },
-      "measured": {
-        "width": 44,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900431447_7",
@@ -181,14 +140,7 @@
           "dy": 0
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 32,
-        "height": 72
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900484591_8",
@@ -208,14 +160,7 @@
         },
         "rotation": 90,
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900522771_9",
@@ -234,14 +179,7 @@
           "dy": 0
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 32,
-        "height": 72
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900527536_10",
@@ -260,14 +198,7 @@
           "dy": 0
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900638995_11",
@@ -290,14 +221,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 88,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900654516_12",
@@ -317,14 +241,7 @@
         },
         "rotation": 90,
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786900721320_13",
@@ -346,14 +263,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 60,
-        "height": 50
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901124723_15",
@@ -372,14 +282,7 @@
           "dy": 0
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901138740_16",
@@ -398,14 +301,7 @@
         },
         "rotation": 90,
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901163276_17",
@@ -424,14 +320,7 @@
         },
         "rotation": 270,
         "showLabel": false
-      },
-      "measured": {
-        "width": 52,
-        "height": 28
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901243917_18",
@@ -451,14 +340,7 @@
         },
         "rotation": 90,
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901260894_19",
@@ -472,21 +354,15 @@
         "category": "detection",
         "type": "photodiode",
         "bandwidth": 100,
-        "responsivity": 0.5,
         "rotation": 90,
         "beamIncomingDir": {
           "dx": 0,
           "dy": 1
         },
-        "showLabel": true
-      },
-      "measured": {
-        "width": 44,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+        "showLabel": true,
+        "signalFactor": 0.025,
+        "showSignal": true
+      }
     },
     {
       "id": "node_1786901328291_20",
@@ -506,14 +382,7 @@
           "dy": -1
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 72,
-        "height": 32
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901338386_21",
@@ -532,14 +401,7 @@
         },
         "showLabel": false,
         "rotation": 90
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901438191_26",
@@ -560,14 +422,7 @@
           "dx": 0,
           "dy": -1
         }
-      },
-      "measured": {
-        "width": 60,
-        "height": 50
-      },
-      "selected": false,
-      "draggable": true,
-      "dragging": false
+      }
     },
     {
       "id": "node_1786901478612_27",
@@ -587,14 +442,7 @@
           "dy": -1
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 72,
-        "height": 32
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901516726_28",
@@ -612,14 +460,7 @@
           "dy": -1
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901584010_29",
@@ -642,14 +483,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 60,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901594888_30",
@@ -668,14 +502,7 @@
           "dy": 0
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 32,
-        "height": 72
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901611464_31",
@@ -694,14 +521,7 @@
           "dx": 1,
           "dy": 0
         }
-      },
-      "measured": {
-        "width": 44,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901628538_32",
@@ -721,14 +541,7 @@
         },
         "rotation": 90,
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786901635999_33",
@@ -748,14 +561,7 @@
         },
         "rotation": 90,
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941450204_1",
@@ -776,14 +582,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 47,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941532059_2",
@@ -804,14 +603,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 44,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941555489_3",
@@ -831,14 +623,7 @@
           "dy": -1
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 72,
-        "height": 32
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941573475_4",
@@ -857,14 +642,7 @@
         },
         "showLabel": false,
         "rotation": 0
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941612683_5",
@@ -887,14 +665,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 60,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941625820_6",
@@ -913,14 +684,7 @@
           "dy": 0
         },
         "showLabel": false
-      },
-      "measured": {
-        "width": 32,
-        "height": 72
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941649156_7",
@@ -939,14 +703,7 @@
           "dx": 1,
           "dy": 0
         }
-      },
-      "measured": {
-        "width": 44,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941667129_8",
@@ -966,14 +723,7 @@
           "dx": -1,
           "dy": 0
         }
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "draggable": true,
-      "dragging": false
+      }
     },
     {
       "id": "node_1786941748251_9",
@@ -993,14 +743,7 @@
         },
         "rotation": 90,
         "showLabel": false
-      },
-      "measured": {
-        "width": 44,
-        "height": 44
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1786941774183_10",
@@ -1021,14 +764,7 @@
           "dy": 0
         },
         "showLabel": true
-      },
-      "measured": {
-        "width": 44,
-        "height": 58
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1787021499856_3",
@@ -1043,14 +779,7 @@
         "type": "power_probe",
         "labelDx": -40,
         "labelDy": -46
-      },
-      "measured": {
-        "width": 18,
-        "height": 18
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1787021522049_4",
@@ -1065,14 +794,7 @@
         "type": "power_probe",
         "labelDx": -6,
         "labelDy": 57
-      },
-      "measured": {
-        "width": 18,
-        "height": 18
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     },
     {
       "id": "node_1787021529325_5",
@@ -1087,14 +809,7 @@
         "type": "power_probe",
         "labelDx": -13,
         "labelDy": 50
-      },
-      "measured": {
-        "width": 18,
-        "height": 18
-      },
-      "selected": false,
-      "dragging": false,
-      "draggable": true
+      }
     }
   ],
   "edges": []

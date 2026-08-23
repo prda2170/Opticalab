@@ -486,6 +486,28 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 
 ## 6. Change log
 
+### 2026-08-23 — the amplifier looks like the instrument it is
+
+`AmplifierIcon` now wears the laser's casing: the same mounting flanges top and bottom, the
+same rounded body in `#3a3a3a` with a black outline, the same four white mounting holes —
+geometry scaled from the laser's 90×66 frame into the amplifier's 64×44 one, so the two read
+as the same family of object at any size. A TA or a fibre amplifier *is* a boxed instrument
+on the table, not a bare optic, and it was previously drawn as a pale open module.
+
+What differs is the inside. The laser's seven ventilation slots are gone; in their place is
+the amplifier's own art, unchanged in shape — the gain stripe tapering from a thin entry
+facet to a wide, emphasised output facet, which is the one thing that says *amplifier*
+rather than *source*. It keeps the category tint, where the laser's casing is fixed grey, so
+the two are never confused at a glance.
+
+The stripe's opacity went from 0.38 to 0.75 and the facet lines were brightened: what read
+correctly as a faint tint on a pale body disappeared against a dark case.
+
+No geometry change — still 64×44, still `symbolType: 'symbol'`, so nothing about trimming,
+rotation or the tests moved. Verified in the app: the canvas node draws three rects (two
+flanges and the body), four mounting holes, **zero** `#1a1a1a` slots, the `#3a3a3a` casing
+and the taper path in the category colour, while the laser is untouched with its seven.
+
 ### 2026-08-23 — cross-document clipboard
 
 Copy a piece of one bench into another. This was half the reason for tabs: two windows can

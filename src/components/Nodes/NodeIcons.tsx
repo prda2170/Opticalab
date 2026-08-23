@@ -42,21 +42,39 @@ export const LaserBoxSVG: React.FC<{ width: number; height: number }> = ({ width
  * seed side and wide on the output side. Literal for a tapered amplifier, and reads as
  * "gain, one way" for a fibre amplifier too.
  */
+/**
+ * Optical amplifier — the same instrument box a laser gets, with a gain medium inside it.
+ *
+ * A TA or a fibre amplifier is a boxed instrument on the table, not a bare optic, so it
+ * takes `LaserBoxSVG`'s casing: mounting flanges top and bottom, a rounded body, four
+ * mounting holes. What differs is what sits inside — the laser's ventilation slots give way
+ * to the tapered gain stripe, widening towards an emphasised output facet, which is the one
+ * thing that says *amplifier* rather than *source*.
+ *
+ * Geometry mirrors the laser's proportions, scaled from its 90×66 frame into this 64×44
+ * one, so the two read as the same family of object at any size.
+ */
 export const AmplifierIcon: React.FC<IconProps> = ({ size = 24, w, h, color = 'currentColor' }) => (
   <svg
     width={w ?? size * AMPLIFIER_ASPECT} height={h ?? size}
-    viewBox="0 0 64 44" fill="none" stroke={color} strokeWidth="1.8"
+    viewBox="0 0 64 44" fill="none"
   >
-    {/* Seed in, amplified out */}
-    <line x1="0" y1="22" x2="7" y2="22" strokeWidth="1" strokeOpacity="0.45"/>
-    <line x1="57" y1="22" x2="64" y2="22" strokeWidth="1.4" strokeOpacity="0.6"/>
-    {/* Module body */}
-    <rect x="7" y="8" width="50" height="28" rx="3" fill={color} fillOpacity="0.12"/>
-    {/* Tapered gain stripe — the amplifying region widening toward the output facet */}
-    <path d="M11 20 L53 13 L53 31 L11 24 Z" fill={color} fillOpacity="0.38" stroke="none"/>
+    {/* Mounting flanges, top and bottom */}
+    <rect x="10" y="0"  width="44" height="7" rx="2" fill="#3a3a3a" stroke="#0d0d0d" strokeWidth="1"/>
+    <rect x="10" y="37" width="44" height="7" rx="2" fill="#3a3a3a" stroke="#0d0d0d" strokeWidth="1"/>
+    {/* Main body */}
+    <rect x="1.5" y="5.5" width="61" height="33" rx="6" fill="#3a3a3a" stroke="#0d0d0d" strokeWidth="1.25"/>
+    {/* Mounting holes */}
+    <circle cx="17" cy="3.5"  r="2" fill="#ffffff" stroke="#0d0d0d" strokeWidth="0.75"/>
+    <circle cx="47" cy="3.5"  r="2" fill="#ffffff" stroke="#0d0d0d" strokeWidth="0.75"/>
+    <circle cx="17" cy="40.5" r="2" fill="#ffffff" stroke="#0d0d0d" strokeWidth="0.75"/>
+    <circle cx="47" cy="40.5" r="2" fill="#ffffff" stroke="#0d0d0d" strokeWidth="0.75"/>
+    {/* Tapered gain stripe — the amplifying region widening toward the output facet.
+        Brighter than it was on a pale background, so it still reads against the dark case. */}
+    <path d="M11 20 L53 13 L53 31 L11 24 Z" fill={color} fillOpacity="0.75" stroke="none"/>
     {/* Facets: the output one is emphasised, being where the power comes out */}
-    <line x1="11" y1="13" x2="11" y2="31" strokeWidth="1" strokeOpacity="0.55"/>
-    <line x1="53" y1="11" x2="53" y2="33" strokeWidth="2.2" strokeOpacity="0.85"/>
+    <line x1="11" y1="13" x2="11" y2="31" stroke={color} strokeWidth="1" strokeOpacity="0.65"/>
+    <line x1="53" y1="11" x2="53" y2="33" stroke={color} strokeWidth="2.2" strokeOpacity="1"/>
   </svg>
 );
 
