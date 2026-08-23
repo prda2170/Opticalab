@@ -6,9 +6,7 @@
 // tabs (the theme, the label size) lives here; anything that describes a particular bench
 // lives in that bench's own store.
 import { create } from 'zustand';
-import { createLayoutStore, type LayoutStoreApi } from './layoutStore';
-import type { Node, Edge } from '@xyflow/react';
-import type { OpticalNodeData, BeamEdgeData } from '../types/components';
+import { createLayoutStore, type LayoutInit, type LayoutStoreApi } from './layoutStore';
 
 /** Range the component-label size slider spans, as a multiple of the base size. */
 export const LABEL_SCALE_MIN = 0.5;
@@ -45,16 +43,37 @@ function documentId(): string {
 
 export function newDocument(
   name = UNTITLED,
-  initial?: { nodes?: Node<OpticalNodeData>[]; edges?: Edge<BeamEdgeData>[] },
+  initial?: LayoutInit,
   handle: FileSystemFileHandle | null = null,
 ): OpenDocument {
   return { id: documentId(), name, handle, store: createLayoutStore(initial) };
 }
 
-interface WorkspaceStore {
+/**
+ * Rebuild a document that already had an identity — a restored session keeps each tab's id
+ * so that anything keyed on it (the panel subtree, a saved active-document id) still lines
+ * up after a reload.
+ */
+export function restoredDocument(
+  id: string,
+  name: string,
+  initial: LayoutInit,
+  handle: FileSystemFileHandle | null,
+): OpenDocument {
+  return { id, name, handle, store: createLayoutStore(initial) };
+}
+
+export interface WorkspaceStore {
   // ── Open documents ────────────────────────────────────────────────────────
   documents: OpenDocument[];
   activeDocId: string;
+
+  /**
+   * False until the previous session has been read back (or found absent). The app holds
+   * off its first render until this flips, so a restored tab set never appears *after* the
+   * user has started drawing in a blank one.
+   */
+  hydrated: boolean;
 
   // ── Preferences: window-wide, deliberately not per document ───────────────
   theme: 'light' | 'dark';
@@ -82,6 +101,20 @@ interface WorkspaceStore {
   renameDocument: (id: string, name: string) => void;
   /** Record which file a document belongs to, after an open or a Save As. */
   setDocumentFile: (id: string, file: { name: string; handle: FileSystemFileHandle | null }) => void;
+
+  /**
+   * Replace the whole open set — how a restored session lands. Passing no documents just
+   * marks hydration done and leaves the blank starting document alone.
+   */
+  adoptSession: (session: { documents: OpenDocument[]; activeDocId?: string; prefs?: Partial<SessionPrefs> }) => void;
+}
+
+/** The window-wide settings worth remembering between sessions. */
+export interface SessionPrefs {
+  theme: 'light' | 'dark';
+  activeView: 'editor' | 'diagram';
+  showBeamLabels: boolean;
+  labelScale: number;
 }
 
 const first = newDocument();
@@ -89,6 +122,7 @@ const first = newDocument();
 export const useWorkspace = create<WorkspaceStore>((set) => ({
   documents: [first],
   activeDocId: first.id,
+  hydrated: false,
 
   theme: 'dark',
   activeView: 'editor',
@@ -130,6 +164,12 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
   setDocumentFile: (id, file) => set(s => ({
     documents: s.documents.map(d => (d.id === id ? { ...d, name: file.name, handle: file.handle } : d)),
   })),
+
+  adoptSession: ({ documents, activeDocId, prefs }) => set(() => {
+    if (documents.length === 0) return { hydrated: true, ...(prefs ?? {}) };
+    const active = documents.some(d => d.id === activeDocId) ? activeDocId! : documents[0].id;
+    return { documents, activeDocId: active, hydrated: true, ...(prefs ?? {}) };
+  }),
 }));
 
 /**

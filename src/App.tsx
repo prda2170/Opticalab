@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { LayoutContext } from './store/layoutContext';
 import { useWorkspace, activeDocument } from './store/workspaceStore';
+import { hydrateSession, startSessionPersistence } from './store/sessionSync';
 import { EditorPanel } from './components/Editor/EditorPanel';
 import { DiagramPanel } from './components/Diagram/DiagramPanel';
 import { UpdatePrompt } from './components/UpdatePrompt';
@@ -15,8 +16,27 @@ const App: React.FC = () => {
   // LayoutContext, so switching documents is a change of provider value — no component
   // needs to know that more than one document exists.
   const doc = useWorkspace(activeDocument);
+  const hydrated = useWorkspace(s => s.hydrated);
 
   const isDark = theme === 'dark';
+
+  // Read the previous session, then start recording the current one. Ordered, not
+  // parallel: persisting before the restore has landed would overwrite it with the blank
+  // document the app starts with.
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    void hydrateSession().then(() => { stop = startSessionPersistence(); });
+    return () => stop?.();
+  }, []);
+
+  // Nothing is rendered until the previous session has been read. It takes a few
+  // milliseconds, and the alternative is a blank tab appearing first and being replaced
+  // under the cursor — or worse, being drawn in and then discarded.
+  if (!hydrated) {
+    return (
+      <div className={`flex items-center justify-center h-screen w-screen ${isDark ? 'bg-gray-950' : 'bg-slate-50'}`} />
+    );
+  }
 
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden ${isDark ? 'bg-gray-950 text-white' : 'bg-slate-50 text-slate-900'}`}>

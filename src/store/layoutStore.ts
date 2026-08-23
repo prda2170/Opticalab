@@ -67,6 +67,15 @@ export interface LayoutState {
   dirty: boolean;
 
   /**
+   * Fingerprint of the content the file holds — the thing `dirty` is measured against.
+   *
+   * In state rather than in a closure because it is part of what a document *is*: a session
+   * snapshot has to write it down, or a document that was unsaved when the window closed
+   * would come back looking saved.
+   */
+  savedFingerprint: string;
+
+  /**
    * Where this document's canvas is scrolled and zoomed to, or null before it has been
    * looked at. Per document, and load-bearing: switching tabs unmounts the canvas, so
    * without this every switch would re-frame the layout with `fitView`. Session state, not
@@ -110,14 +119,26 @@ export interface LayoutState {
 /** A single document's store. */
 export type LayoutStoreApi = StoreApi<LayoutState>;
 
+/** Everything a document can be created holding. */
+export interface LayoutInit {
+  nodes?: Node<OpticalNodeData>[];
+  edges?: Edge<BeamEdgeData>[];
+  /** Where the canvas was, for a document coming back from a previous session. */
+  viewport?: { x: number; y: number; zoom: number } | null;
+  /**
+   * Fingerprint of the state the *file* holds, when that differs from the state being
+   * restored — which is how a document that was dirty when the tab closed comes back
+   * dirty. Defaults to the given content, i.e. clean.
+   */
+  savedFingerprint?: string;
+}
+
 /**
  * Create a store for one document, optionally pre-loaded — session restore and "open in a
  * new tab" both hand it a layout that has already been read and migrated.
  */
-export function createLayoutStore(
-  initial?: { nodes?: Node<OpticalNodeData>[]; edges?: Edge<BeamEdgeData>[] },
-): LayoutStoreApi {
-  return createStore<LayoutState>()((set, get) => {
+export function createLayoutStore(initial?: LayoutInit): LayoutStoreApi {
+  const store = createStore<LayoutState>()((set, get) => {
     // Last routeKey we traced, so pure re-renders don't re-run the engine.
     let lastRouteKey = '';
 
@@ -143,15 +164,16 @@ export function createLayoutStore(
     const startEdges = initial?.edges ?? [];
 
     /**
-     * Fingerprint of the state the file holds. A document opened from a file starts at that
-     * file's content; a new document starts at empty, which is what "unchanged" means for
-     * something never saved.
+     * A document opened from a file starts at that file's content; a new document starts at
+     * empty, which is what "unchanged" means for something never saved. A restored document
+     * brings its own, so unsaved work still looks unsaved after a reload.
      */
-    let savedFingerprint = layoutFingerprint(startNodes, startEdges);
+    const startFingerprint = initial?.savedFingerprint
+      ?? layoutFingerprint(startNodes, startEdges);
 
     /** Recompute `dirty` from the current content. Cheap, and called only on mutation. */
     const refreshDirty = () => {
-      const { nodes, edges } = get();
+      const { nodes, edges, savedFingerprint } = get();
       set({ dirty: layoutFingerprint(nodes, edges) !== savedFingerprint });
     };
 
@@ -164,8 +186,9 @@ export function createLayoutStore(
       nodeArrivals: new Map(),
       warnings: new Map(),
       selectedNodeId: null,
-      dirty: false,
-      viewport: null,
+      dirty: layoutFingerprint(startNodes, startEdges) !== startFingerprint,
+      savedFingerprint: startFingerprint,
+      viewport: initial?.viewport ?? null,
       canvasVersion: 0,
       history: [],
       future: [],
@@ -177,7 +200,7 @@ export function createLayoutStore(
         set({
           nodes,
           edges: userEdges,
-          dirty: layoutFingerprint(nodes, userEdges) !== savedFingerprint,
+          dirty: layoutFingerprint(nodes, userEdges) !== get().savedFingerprint,
         });
         trace(nodes, userEdges);
       },
@@ -235,18 +258,17 @@ export function createLayoutStore(
 
       markSaved: () => {
         const { nodes, edges } = get();
-        savedFingerprint = layoutFingerprint(nodes, edges);
-        set({ dirty: false });
+        set({ savedFingerprint: layoutFingerprint(nodes, edges), dirty: false });
       },
 
       loadLayout: (data) => {
-        // Loading defines a new baseline: the document now matches what is on disk.
-        savedFingerprint = layoutFingerprint(data.nodes, data.edges);
         set((state) => ({
           nodes: data.nodes,
           edges: data.edges,
           history: [],
           future: [],
+          // Loading defines a new baseline: the document now matches what is on disk.
+          savedFingerprint: layoutFingerprint(data.nodes, data.edges),
           dirty: false,
           canvasVersion: state.canvasVersion + 1,
         }));
@@ -266,4 +288,13 @@ export function createLayoutStore(
       },
     };
   });
+
+  // Trace straight away when created with content. Without this a document restored from a
+  // session — or opened into a new tab — holds components and no beams until something
+  // else provokes a trace: the editor canvas does so on mount, but the Diagram view only
+  // renders `segments`, and `activeView` is itself restored, so it can be the first thing
+  // you see.
+  if (store.getState().nodes.length > 0) store.getState().recomputeBeams();
+
+  return store;
 }

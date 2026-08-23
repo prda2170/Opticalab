@@ -392,7 +392,9 @@ open documents, which one is active, and the preferences that belong to the wind
 than to a bench (`theme`, `activeView`, `showBeamLabels`, `labelScale`).
 
 `DocumentTabs` renders the open documents; `App` provides the active one's store and keys
-the panel subtree by document id, so switching tabs mounts a clean canvas. Components never
+the panel subtree by document id, so switching tabs mounts a clean canvas. The whole set is
+persisted to IndexedDB by `sessionSync` and read back before the first render — see the
+phase 5 entry in the change log. Components never
 import a document store. They call `useLayout(selector)` from
 `layoutContext.ts`, which reads whichever instance the surrounding
 `LayoutContext.Provider` supplies — so switching documents is a change of provider value,
@@ -483,6 +485,70 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — session restore (tabs, phase 5)
+
+The open tabs survive a reload. One window holding several benches makes a refresh
+expensive, and an installed app gets treated like a native one, so the workspace is written
+to IndexedDB and read back on start.
+
+**IndexedDB, for one specific reason:** a `FileSystemFileHandle` is structured-cloneable, so
+a restored tab still knows which file it belongs to and Save can write back to it after a
+single permission click. `localStorage` could only have held strings.
+
+**Each layout is stored as layout JSON** — the same format Save writes — so restore goes
+through `layoutFromJSON` and inherits its version check and migrations. A session can never
+resurrect a schema the app no longer understands, and a snapshot written by an older build
+is migrated on the way back in (there is a test for exactly that: a 1.0 photodiode comes
+back with `signalFactor`).
+
+**The saved baseline moved into state.** `dirty` is measured against the fingerprint of what
+the *file* holds, which used to live in a closure — invisible to a snapshot, so a document
+that was unsaved when the window closed would have come back looking saved. It is part of
+what a document *is*, so it is now `savedFingerprint` on the store, and a dirty tab comes
+back dirty with its unsaved work intact.
+
+**Writes are debounced (400 ms) and flushed on `visibilitychange`.** Not on
+`beforeunload`: a transaction opened there is not guaranteed to commit, so the debounce is
+short rather than clever. A document's content lives in its own store, so the sync watches
+every open document as well as the workspace — the workspace subscription alone would only
+see tabs opening and closing, not a component being dragged inside one.
+
+**Hydration gates the first render.** Reading IndexedDB is asynchronous, and the
+alternative was a blank tab appearing first and being replaced under the cursor — or worse,
+drawn in and then discarded. Blank unsaved documents are skipped when snapshotting, since
+restoring a row of empty `Untitled` tabs is noise, but a blank document *with a file* or
+*with unsaved changes* is kept (emptying a saved layout and not saving it is exactly the
+case worth not losing).
+
+**Two bugs found while verifying, both real:**
+
+- **A restored document had no beams.** `createLayoutStore` set the initial nodes but never
+  traced, and only the editor canvas provokes a trace on mount — the Diagram view just
+  renders `segments`, and `activeView` is itself restored, so it could be the first thing
+  you saw. The factory now traces when created with content, which also fixes opening a
+  file into a new tab while on the Diagram. Caught by a test asserting a restored document
+  has segments, and confirmed in the app: a restored D1 tab opened straight to the Diagram
+  draws all 231 beam lines.
+- **One unclonable handle lost the whole session.** IndexedDB rejects the entire value if
+  any part of it cannot be cloned, so `writeSnapshot` now retries without handles on
+  `DataCloneError`. The tabs and layouts come back; Save asks for a path again, which is
+  what Firefox and Safari do anyway. Found because the stub handle used for testing
+  contains functions, where a real one clones fine — the harness limitation exposed a
+  genuine single point of failure.
+
+Verified in the running app: two documents (the D1 bench opened from a file, and an
+`Untitled` with one component left deliberately unsaved), each zoomed differently, then a
+reload. Both came back with the right layout (41 nodes and 1), the right dirty state (clean
+and dirty), and their own viewports restored exactly (scale 0.5 and 2). A restored tab's
+Diagram shows all 231 beam lines with the expected 795 nm powers.
+
+22 tests added (`src/store/__tests__/session.test.ts`): snapshot contents including name,
+file, viewport, baseline and prefs; blank-document skipping and its two exceptions;
+round-tripping several documents in order with their ids; clean and dirty both surviving;
+migration on the way back in; dropping documents that no longer parse and counting them;
+snapshot-shape validation; `adoptSession`'s replace/keep/fallback behaviour; and that a
+restored document saves to the same bytes it would have before. **433 tests total.**
 
 ### 2026-08-22 — file identity per document (tabs, phase 3)
 

@@ -36,6 +36,9 @@ It runs in a browser and installs as a desktop app, offline, with no setup — s
 - **Save means save.** Ctrl+S writes back to the file the layout came from; Ctrl+Shift+S
   picks a new one; Ctrl+O opens a file, in a new tab unless the current one is blank.
   (Firefox and Safari cannot hand back a writable file handle, so Save downloads there.)
+- **Your tabs come back.** The open documents, their viewports and any unsaved changes are
+  remembered across a reload, along with which file each one belongs to — so Save still
+  writes to the right place after a restart, once you allow it.
 - **Two views of one layout.** An editor canvas for building, and a clean read-only diagram
   for figures — exportable as SVG or PNG, with components as native SVG so it opens in
   Illustrator or Inkscape.
@@ -182,7 +185,7 @@ src/
 │   ├── Diagram/        read-only figure renderer
 │   ├── Nodes/          component artwork and node rendering
 │   └── Edges/          beam rendering on the canvas
-├── store/            one store per open document, plus the app-wide workspace store
+├── store/            one store per open document, the workspace store, session restore
 ├── types/            component data and beam state
 └── utils/            geometry boxes, palette, export, formatting
 ```
@@ -203,9 +206,10 @@ behind each design decision, gotchas that have bitten before, and a change log.
 npm test
 ```
 
-411 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
+433 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
 Gaussian propagation, polarisation, AOM orders and double passes, the angle lattice, face
-trimming, detectors, layout-file loading and migration, the workspace's document rules, and the dirty/file-identity logic behind Save. They are plain functions — no DOM, no React —
+trimming, detectors, layout-file loading and migration, the workspace's document rules, the dirty/file-identity logic behind Save, and session
+snapshots. They are plain functions — no DOM, no React —
 which is why they run in about two seconds.
 
 `npm run lint` reports one remaining error, in `NodeIcons.tsx` (a file that exports both
@@ -226,8 +230,9 @@ components and a helper, which breaks fast refresh). CI runs lint without failin
   its bounding box rather than its artwork.
 - **Installing needs HTTPS and a Chromium or Safari browser.** Firefox runs the app fine but
   cannot install it, and neither can any host served over plain HTTP.
-- **A layout lives in memory until you save it.** There is no autosave and no recovery of an
-  unsaved bench, which is why an update waits for you to click Reload.
+- **A layout lives in memory until you save it.** The open tabs are remembered across a
+  reload, but that snapshot is a convenience, not a backup: it is only written a moment
+  after each change, and only the file on disk is the real thing.
 
 ## License
 
