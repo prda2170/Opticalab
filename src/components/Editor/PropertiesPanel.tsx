@@ -241,6 +241,34 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
         produced the power above.
       </Hint>
     </>;
+    case 'fiber_amplifier': return <>
+      <Row label="Wavelength" unit="nm"><Num value={data.wavelength} onChange={v => u({ wavelength: v })} min={200} max={2000} /></Row>
+      <Row label="Output power" unit="mW">
+        <Num value={data.outputPower} onChange={v => u({ outputPower: v })} min={0} step={10} />
+      </Row>
+      <Row label="Polarization">
+        <Sel value={data.polarization} onChange={e => u({ polarization: e.target.value })}>
+          <option value="H">H (horizontal)</option>
+          <option value="V">V (vertical)</option>
+          <option value="circular">Circular</option>
+          <option value="custom">Custom</option>
+        </Sel>
+      </Row>
+      <Row label="Waist w₀" unit="µm">
+        <Num value={data.waist ?? DEFAULT_WAIST_UM} onChange={v => u({ waist: v })} min={1} step={10} />
+      </Row>
+      <Row label="M²">
+        <Num value={data.mSquared ?? 1} onChange={v => u({ mSquared: v })} min={1} step={0.05} />
+      </Row>
+      <Row label="Current" unit="mA">
+        <Num value={data.current ?? 0} onChange={v => u({ current: v })} min={0} step={10} />
+      </Row>
+      <Hint>
+        Seeded down a fibre, so it needs no beam drawn to it — it starts a beam like a
+        laser does, and states its own output. The seed itself is not modelled: set the
+        output to what your power meter reads. w₀ is at the output collimator.
+      </Hint>
+    </>;
     case 'optical_amplifier': return <>
       <Row label="Output power" unit="mW">
         <Num value={data.outputPower} onChange={v => u({ outputPower: v })} min={0} step={10} />

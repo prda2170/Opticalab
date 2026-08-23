@@ -232,8 +232,11 @@ function rawOutputs(inBeam: BeamState, node: OpticalNodeData, ctx: PortContext):
 
     // A beam that reaches an emitter goes back into it, not out the other side — into
     // the diode, or back down the fibre. The router raises a feedback warning.
+    // Emitters absorb: a beam reaching one is feedback into a diode or back down a fibre,
+    // not something that carries on. `autoRoute` warns about it.
     case 'laser_source':
     case 'fiber_launcher':
+    case 'fiber_amplifier':
       return [];
 
     // ── Fibre ────────────────────────────────────────────────────────────────
@@ -426,7 +429,13 @@ export function outputPortFor(
 }
 
 /** Component types that launch a beam into free space rather than receiving one. */
-const EMITTER_TYPES = new Set<OpticalNodeData['type']>(['laser_source', 'fiber_launcher']);
+const EMITTER_TYPES = new Set<OpticalNodeData['type']>([
+  'laser_source',
+  'fiber_launcher',
+  // Its seed arrives by fibre, which the free-space layout never sees, so as far as the
+  // tracer is concerned it starts a beam rather than continuing one.
+  'fiber_amplifier',
+]);
 
 export function isEmitter(type: OpticalNodeData['type']): boolean {
   return EMITTER_TYPES.has(type);
@@ -455,6 +464,14 @@ export function emitterBeam(node: OpticalNodeData): BeamState | null {
         node.wavelength ?? 780,
         node.outputPower ?? 1,
         node.polarization ?? 'H',
+        node.waist,
+        node.mSquared,
+      );
+    case 'fiber_amplifier':
+      return sourceBeam(
+        node.wavelength,
+        node.outputPower,
+        node.polarization,
         node.waist,
         node.mSquared,
       );

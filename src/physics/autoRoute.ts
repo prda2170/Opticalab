@@ -74,7 +74,7 @@ const BEAM_THROUGH_TYPES = new Set([
  * 45 px inside the laser's case and reported a path 45 px too long, which a diagonal
  * double pass makes obvious: the return leg measured longer than the outbound one.
  */
-const EMITTER_FACE_TYPES = new Set(['laser_source', 'fiber_launcher']);
+const EMITTER_FACE_TYPES = new Set(['laser_source', 'fiber_launcher', 'fiber_amplifier']);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -467,7 +467,9 @@ export function autoRoute(
         nodeId: best.id,
         message: best.data.type === 'fiber_launcher'
           ? 'A beam is entering this launcher and coupling back down the fibre. Add an isolator if that reaches a diode.'
-          : 'A beam is entering this laser. Real feedback into the diode is damaging — add an isolator.',
+          : best.data.type === 'fiber_amplifier'
+            ? 'A beam is entering this amplifier backwards. Feedback into a gain medium is how amplifiers die — add an isolator.'
+            : 'A beam is entering this laser. Real feedback into the diode is damaging — add an isolator.',
       });
     }
 

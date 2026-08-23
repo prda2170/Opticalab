@@ -16,6 +16,18 @@ export const PALETTE: PaletteEntry[] = [
     // TA-ish defaults: ~1 W out at a couple of amps of drive current.
     defaultData: { name: 'TA', category: 'source', type: 'optical_amplifier', outputPower: 1000, current: 2000 },
   },
+  {
+    type: 'fiber_amplifier',
+    label: 'Fiber Amplifier',
+    category: 'source',
+    // Fibre-seeded, so it needs no beam drawn to it. Defaults suit an erbium/ytterbium
+    // fibre amplifier: a watt or two out of a collimator with a wider waist than a diode.
+    defaultData: {
+      name: 'FA', category: 'source', type: 'fiber_amplifier',
+      wavelength: 1064, outputPower: 2000, polarization: 'H', waist: 1200, mSquared: 1.05,
+      current: 3000,
+    },
+  },
 
   // ─── Conditioning ─────────────────────────────────────────────────────────
   {

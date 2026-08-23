@@ -78,6 +78,40 @@ export const AmplifierIcon: React.FC<IconProps> = ({ size = 24, w, h, color = 'c
   </svg>
 );
 
+/**
+ * Fibre-coupled optical amplifier: the amplifier's instrument box, seeded down a fibre.
+ *
+ * Same casing as `AmplifierIcon` so the two read as siblings, with two differences that
+ * carry the whole distinction. The entry facet is replaced by a fibre entering the case
+ * through a strain-relief boot, because that is where the seed comes from; and there is no
+ * free-space input, which is why this type emits rather than passing a beam through.
+ */
+export const FiberAmplifierIcon: React.FC<IconProps> = ({ size = 24, w, h, color = 'currentColor' }) => (
+  <svg
+    width={w ?? size * AMPLIFIER_ASPECT} height={h ?? size}
+    viewBox="0 0 64 44" fill="none"
+  >
+    {/* Mounting flanges, top and bottom */}
+    <rect x="10" y="0"  width="44" height="7" rx="2" fill="#3a3a3a" stroke="#0d0d0d" strokeWidth="1"/>
+    <rect x="10" y="37" width="44" height="7" rx="2" fill="#3a3a3a" stroke="#0d0d0d" strokeWidth="1"/>
+    {/* Main body */}
+    <rect x="1.5" y="5.5" width="61" height="33" rx="6" fill="#3a3a3a" stroke="#0d0d0d" strokeWidth="1.25"/>
+    {/* Mounting holes */}
+    <circle cx="17" cy="3.5"  r="2" fill="#ffffff" stroke="#0d0d0d" strokeWidth="0.75"/>
+    <circle cx="47" cy="3.5"  r="2" fill="#ffffff" stroke="#0d0d0d" strokeWidth="0.75"/>
+    <circle cx="17" cy="40.5" r="2" fill="#ffffff" stroke="#0d0d0d" strokeWidth="0.75"/>
+    <circle cx="47" cy="40.5" r="2" fill="#ffffff" stroke="#0d0d0d" strokeWidth="0.75"/>
+    {/* Seed fibre, entering the case from below-left through a boot. Drawn outside the
+        body on purpose: a fibre is a thing hanging off the instrument, not a beam. */}
+    <path d="M2 43 C 8 43, 10 34, 16 30" stroke="#d1d5db" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
+    <rect x="13" y="26" width="7" height="6" rx="2" transform="rotate(-38 16.5 29)" fill="#6b7280" stroke="#0d0d0d" strokeWidth="0.6"/>
+    {/* Tapered gain stripe, from the seeded end to the output facet */}
+    <path d="M17 21 L53 13 L53 31 L17 23 Z" fill={color} fillOpacity="0.75" stroke="none"/>
+    {/* Output facet, emphasised: the only place light leaves */}
+    <line x1="53" y1="11" x2="53" y2="33" stroke={color} strokeWidth="2.2" strokeOpacity="1"/>
+  </svg>
+);
+
 export const IsolatorIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 44 44" fill="none">
     {/* Left connector tab */}
@@ -572,6 +606,7 @@ export function getNodeIcon(
   switch (type) {
     case 'laser_source':      return <LaserIcon size={size} color={color} />;
     case 'optical_amplifier': return <AmplifierIcon size={size} color={color} />;
+    case 'fiber_amplifier':   return <FiberAmplifierIcon size={size} color={color} />;
     case 'isolator':          return <IsolatorIcon size={size} color={color} />;
     case 'linear_polarizer':  return <PolarizerIcon size={size} color={color} />;
     case 'hwp':               return <WaveplateIcon size={size} color={color} label="λ/2" />;

@@ -486,6 +486,48 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 
 ## 6. Change log
 
+### 2026-08-23 — fibre-coupled amplifier: an amplifier that is a source
+
+`fiber_amplifier` — a fibre amplifier, or a TA with a fibre-fed seed. The one thing that
+makes it different from `optical_amplifier` is that **it needs no beam drawn to it**: its
+seed arrives down a fibre, which is not part of the free-space layout, so to the tracer it
+starts a beam rather than continuing one.
+
+**A separate type, not a flag on the existing one.** An emitter and a pass-through are
+different things to the tracer — different `componentOutputs` behaviour, a place in
+`EMITTER_TYPES` and `EMITTER_FACE_TYPES`, a different set of fields — not two settings of
+one thing. Trying to express it as `optical_amplifier` with `fibreSeeded: true` would put a
+branch in every one of those places.
+
+So it states its own output beam exactly as a laser does: wavelength, power, polarisation,
+waist and M², plus the same bookkeeping `current`. It seeds the Gaussian chain from its
+output collimator. Defaults suit an erbium/ytterbium fibre amplifier — 1064 nm, 2 W, a
+1.2 mm waist, M² 1.05, 3 A — deliberately unlike the free-space amplifier's TA defaults.
+
+**Neither the seed nor ASE is modelled**, which is stated in the panel: if the fibre is
+dark, a real device emits broadband light and this one emits `outputPower` regardless. Set
+it to what your power meter reads. That is the same bargain the free-space amplifier makes,
+and the same one a laser makes.
+
+**A beam sent into it is absorbed and warned about**, like any emitter — "feedback into a
+gain medium is how amplifiers die". It is in `EMITTER_FACE_TYPES`, so a departing ray starts
+on the output face while an arriving one is trimmed to it.
+
+The icon is `AmplifierIcon`'s casing with two changes that carry the whole distinction: the
+entry facet is replaced by a seed fibre entering through a strain-relief boot, and there is
+no free-space input at all. Same 64×44 artwork box, so the two amplifiers sit side by side
+as siblings.
+
+Verified in the app: dropped alone with a detector downstream and *nothing* feeding it, it
+lights a 1064 nm beam of 2.0 W with w = 1.20 mm onto the detector, and the figure annotates
+λ, P and pol like the source it is.
+
+11 tests added (`__tests__/fiberAmplifier.test.ts`): that it is an emitter where the
+free-space amplifier is not, that it starts a beam alone on the bench, that it emits what it
+states, that it seeds the Gaussian chain, that it emits from its output face at every
+lattice angle, that it absorbs an arriving beam and warns, that it is absent from the
+fixed-fraction power table, and its palette/geometry/trim wiring. **467 tests total.**
+
 ### 2026-08-23 — the amplifier looks like the instrument it is
 
 `AmplifierIcon` now wears the laser's casing: the same mounting flanges top and bottom, the

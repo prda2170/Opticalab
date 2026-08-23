@@ -83,6 +83,32 @@ export interface OpticalAmplifierData extends BaseNodeData {
   current?: number;
 }
 
+/**
+ * Fibre-coupled optical amplifier — a fibre amplifier, or a TA with a fibre-fed seed.
+ *
+ * Unlike the free-space `optical_amplifier`, this one **needs no beam drawn to it**: its
+ * seed arrives down a fibre, which is not part of the free-space layout, so it behaves as a
+ * source. That is the whole difference, and it is why this is a separate type rather than a
+ * flag — an emitter and a pass-through are different things to the tracer, not different
+ * settings of one thing.
+ *
+ * It states its own output beam exactly as a laser does. ASE is not modelled, and neither
+ * is the seed: if the fibre is dark the real device puts out only broadband light, and here
+ * it puts out whatever `outputPower` says. Set it to what your power meter reads.
+ */
+export interface FiberAmplifierData extends BaseNodeData {
+  type: 'fiber_amplifier';
+  wavelength: number;   // nm
+  /** Power delivered at the output collimator, mW. */
+  outputPower: number;
+  polarization: 'H' | 'V' | 'circular' | 'custom';
+  /** 1/e² waist radius of the collimated output, µm. */
+  waist?: number;
+  mSquared?: number;
+  /** Drive current, mA. Bookkeeping only, as on a laser. */
+  current?: number;
+}
+
 // ─── Conditioning ─────────────────────────────────────────────────────────────
 export interface IsolatorData extends BaseNodeData {
   type: 'isolator';
@@ -373,6 +399,7 @@ export interface PowerProbeData extends BaseNodeData {
 export type OpticalNodeData =
   | LaserSourceData
   | OpticalAmplifierData
+  | FiberAmplifierData
   | IsolatorData
   | LinearPolarizerData
   | HWPData

@@ -22,7 +22,8 @@ export function iconDimensions(
   switch (type) {
     case 'laser_source':      return { w: size * LASER_ASPECT, h: size };
     case 'vapor_cell':        return { w: size * VAPOR_CELL_ASPECT, h: size };
-    case 'optical_amplifier': return { w: size * AMPLIFIER_ASPECT, h: size };
+    case 'optical_amplifier':
+    case 'fiber_amplifier':   return { w: size * AMPLIFIER_ASPECT, h: size };
     default:                  return { w: size, h: size };
   }
 }

@@ -43,6 +43,13 @@ function getAnnotations(data: OpticalNodeData): Record<string, string> {
       ann['P'] = formatSourcePower(data.outputPower);
       if (data.current) ann['I'] = formatCurrent(data.current);
       break;
+    case 'fiber_amplifier':
+      // A source, so it gets source-style annotations: what colour, how much, how polarised.
+      ann['λ'] = `${data.wavelength} nm`;
+      ann['P'] = formatSourcePower(data.outputPower);
+      ann['pol'] = data.polarization;
+      if (data.current) ann['I'] = formatCurrent(data.current);
+      break;
     case 'hwp': ann['θ'] = `${data.fastAxisAngle}°`; break;
     case 'qwp': ann['θ'] = `${data.fastAxisAngle}°`; break;
     case 'linear_polarizer': ann['θ'] = `${data.angle}°`; break;

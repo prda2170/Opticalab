@@ -37,6 +37,9 @@ const GEOMETRIES: Partial<Record<OpticalNodeData['type'], NodeGeometry>> = {
   // Module lying along the beam; a symbol so it turns to face it (the taper is
   // directional), and the beam is trimmed to its facets.
   optical_amplifier: { width: 64, height: 44, symbolType: 'symbol' },
+  // Same instrument box as the free-space amplifier; the difference is a fibre lead-in
+  // instead of an entry facet, and that it emits rather than passes a beam through.
+  fiber_amplifier:   { width: 64, height: 44, symbolType: 'symbol' },
 
   // ── Conditioning ────────────────────────────────────────────────────────
   // beamFaceHalf: the visible icon rect is narrower than the geometry bounding box.
