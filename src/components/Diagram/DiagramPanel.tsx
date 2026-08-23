@@ -15,9 +15,8 @@ import { CATEGORY_COLORS } from '../../types/components';
 import type { OpticalNodeData, PowerProbeData } from '../../types/components';
 import type { BeamSegment } from '../../types/beam';
 import { downloadSVG, downloadPNG } from '../../utils/export';
-import { PX_PER_INCH, formatSpot } from '../../physics/scale';
-import { formatDetuning } from '../../physics/wavelength';
-import { drawnEndpoints } from '../../physics/beamLayout';
+import { PX_PER_INCH } from '../../physics/scale';
+import { makeSpread, DEFAULT_SPREAD, type SpreadTransform } from '../../physics/spread';
 import { componentLanes } from '../../physics/lanes';
 import { probeBeam, probeLines } from '../../physics/probe';
 import { detectorSignalLabel, incidentPower } from '../../physics/detector';
@@ -90,40 +89,25 @@ function getAnnotations(data: OpticalNodeData): Record<string, string> {
   return ann;
 }
 
-/** Format a beam power for a diagram label. */
-function formatPower(mW: number): string {
-  if (mW >= 1000) return `${(mW / 1000).toFixed(1)} W`;
-  if (mW >= 0.5)  return `${mW.toFixed(mW >= 10 ? 0 : 1)} mW`;
-  return `${(mW * 1000).toFixed(0)} µW`;
-}
-
 /**
- * One beam segment, straight from the traced coordinates. Free beams (those that
+ * One beam segment, spread out but geometrically the same beam. Free beams (those that
  * leave the layout) get no arrowhead and fade out, so the figure doesn't imply a
  * component where there isn't one.
+ *
+ * No text: a figure carries λ and power on the components that set them (the annotations
+ * above each icon), and repeating them along every segment is what made the busy layouts
+ * unreadable. The waist marker keeps its tick, which says where the focus is without
+ * needing a number.
  */
-const BeamPath: React.FC<{ seg: BeamSegment; theme: 'light' | 'dark'; showLabels: boolean }> = ({ seg, theme, showLabels }) => {
+const BeamPath: React.FC<{ seg: BeamSegment; spread: SpreadTransform }> = ({ seg, spread }) => {
   const color = wavelengthToRGB(seg.beam.wavelength);
   const dash  = wavelengthDashArray(seg.beam.wavelength);
-  const det = formatDetuning(seg.beam.detuningHz);
-  const label = [
-    `${Math.round(seg.beam.wavelength)}nm${det ? ` ${det}` : ''}`,
-    seg.beam.power > 0 ? formatPower(seg.beam.power) : null,
-    seg.beam.w != null ? `w=${formatSpot(seg.beam.w)}` : null,
-  ].filter(Boolean).join(' · ');
 
-  // Drawn coordinates: physically true, plus any cosmetic separation from beams
-  // sharing this line. Identical to what the editor canvas draws.
-  const { x1, y1, x2, y2 } = drawnEndpoints(seg);
-  const shift = seg.renderShift;
-
-  // Label at the midpoint, nudged clear of the beam.
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
+  // Drawn coordinates: the traced ones, plus any cosmetic separation from beams sharing
+  // this line, plus the figure's spacing. Never the raw segment fields.
+  const { x1, y1, x2, y2 } = spread.segment(seg);
   const horizontal = Math.abs(x2 - x1) > Math.abs(y2 - y1);
-  const lx = mx + (horizontal ? 0 : 30);
-  const ly = my + (horizontal ? -7 : 0);
-  const width = Math.max(46, label.length * 4.4);
+  const waist = spread.waist(seg);
 
   return (
     <g>
@@ -134,46 +118,18 @@ const BeamPath: React.FC<{ seg: BeamSegment; theme: 'light' | 'dark'; showLabels
         opacity={seg.free ? 0.55 : 0.9}
         markerEnd={seg.free ? undefined : `url(#diag-arrow-${seg.beam.wavelength.toFixed(0)})`}
       />
-      {showLabels && !seg.free && (
-        <>
-          <rect x={lx - width / 2} y={ly - 6} width={width} height={12} rx={3}
-            fill={theme === 'dark' ? 'rgba(15,17,23,0.85)' : 'rgba(248,250,252,0.92)'}
-            stroke={color} strokeWidth={0.5}
-          />
-          <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
-            fontSize={6.5} fill={color} fontFamily="monospace">
-            {label}
-          </text>
-        </>
-      )}
 
-      {/* Focus marker: the beam comes to a waist part-way along this segment.
-          Shifted with the drawn line so it stays on the beam. */}
-      {seg.waist && (() => {
-        const wx = seg.waist.x + (shift?.dx ?? 0);
-        const wy = seg.waist.y + (shift?.dy ?? 0);
-        return (
+      {/* Focus marker: the beam comes to a waist part-way along this segment. */}
+      {waist && (
         <g>
           <line
-            x1={wx + (horizontal ? 0 : -4)} y1={wy + (horizontal ? -4 : 0)}
-            x2={wx + (horizontal ? 0 : 4)}  y2={wy + (horizontal ? 4 : 0)}
+            x1={waist.x + (horizontal ? 0 : -4)} y1={waist.y + (horizontal ? -4 : 0)}
+            x2={waist.x + (horizontal ? 0 : 4)}  y2={waist.y + (horizontal ? 4 : 0)}
             stroke={color} strokeWidth={1} opacity={0.9}
           />
-          <circle cx={wx} cy={wy} r={1.6} fill={color} opacity={0.9} />
-          {showLabels && (
-            <text
-              x={wx + (horizontal ? 0 : 8)}
-              y={wy + (horizontal ? 12 : 0)}
-              textAnchor={horizontal ? 'middle' : 'start'}
-              dominantBaseline="middle"
-              fontSize={6} fill={color} fontFamily="monospace" opacity={0.95}
-            >
-              {`w₀=${formatSpot(seg.waist.radius)}`}
-            </text>
-          )}
+          <circle cx={waist.x} cy={waist.y} r={1.6} fill={color} opacity={0.9} />
         </g>
-        );
-      })()}
+      )}
     </g>
   );
 };
@@ -187,12 +143,15 @@ const ProbeSymbol: React.FC<{
   segments: BeamSegment[];
   theme: 'light' | 'dark';
   labelScale: number;
-}> = ({ node, segments, theme, labelScale }) => {
+  spread: SpreadTransform;
+}> = ({ node, segments, theme, labelScale, spread }) => {
   const data = node.data as PowerProbeData;
   const g = getNodeGeometry('power_probe');
-  const cx = node.position.x + g.width / 2;
-  const cy = node.position.y + g.height / 2;
-  const reading = probeBeam(segments, { x: cx, y: cy });
+  // Read the beam at the probe's *true* position — the spacing is a drawing device and must
+  // not change which beam a probe is measuring — then draw the ring at the spread one.
+  const traced = { x: node.position.x + g.width / 2, y: node.position.y + g.height / 2 };
+  const reading = probeBeam(segments, traced);
+  const { x: cx, y: cy } = spread.point(traced);
   const colour = CATEGORY_COLORS.utility;
   const lines = probeLines(data, reading?.beam ?? null);
 
@@ -226,6 +185,18 @@ const ProbeSymbol: React.FC<{
   );
 };
 
+/**
+ * Components the figure draws without their name.
+ *
+ * A bench has a lot of mirrors and they are all called "M". The label says nothing the glyph
+ * does not — a mirror is obvious from its hatched face and its 45° angle — while three
+ * letters beside every fold add up to the busiest thing in the figure. The editor still
+ * labels them, since there a name is how you find the component you meant.
+ */
+const UNNAMED_IN_FIGURE = new Set<OpticalNodeData['type']>([
+  'dielectric_mirror', 'dichroic_mirror', 'galvo',
+]);
+
 // Render a single component as SVG group using actual geometry
 const NodeSymbol: React.FC<{
   node: Node<OpticalNodeData>;
@@ -239,15 +210,19 @@ const NodeSymbol: React.FC<{
   signal: string | null;
   /** Which way this component's label sits, from the trace. */
   labelSide: { dx: number; dy: number };
-}> = ({ node, toggles, onToggle, theme, showAnnotations, hiddenTypes, labelScale, signal, labelSide }) => {
+  spread: SpreadTransform;
+}> = ({ node, toggles, onToggle, theme, showAnnotations, hiddenTypes, labelScale, signal, labelSide, spread }) => {
   const data = node.data;
   const rotation = data.rotation ?? 0;
   const g = getNodeGeometry(data.type, rotation);
   const hw = g.width / 2;
   const hh = g.height / 2;
-  // Center point in canvas coords
-  const cx = node.position.x + hw;
-  const cy = node.position.y + hh;
+  // Where the figure puts this component. The icon itself is drawn at its true size —
+  // spacing moves components apart, it does not magnify them.
+  const { x: cx, y: cy } = spread.point({
+    x: node.position.x + hw,
+    y: node.position.y + hh,
+  });
 
   const catColor = CATEGORY_COLORS[data.category];
   const textColor = theme === 'dark' ? '#e2e8f0' : '#1e293b';
@@ -265,6 +240,7 @@ const NodeSymbol: React.FC<{
   // A few icons are wider than they are tall, so centre by their real drawn size.
   const drawn     = iconDimensions(data.type, iconSize);
   const showAnn   = showAnnotations && !hiddenTypes.has(data.type);
+  const showName  = data.showLabel === true && !UNNAMED_IN_FIGURE.has(data.type);
   const annotations = getAnnotations(data);
   const annKeys = Object.keys(annotations);
 
@@ -296,8 +272,11 @@ const NodeSymbol: React.FC<{
       {/* Acousto-optics: the 0th order peeling off to its own lane, which sits outside
           the body. Mirrors the marker OpticalNode draws, so both views agree. */}
       {(data.type === 'aom' || data.type === 'aod') && (() => {
-        const lane = componentLanes(data)[1] ?? 0;
         const dumped = (data as { dumpZeroOrder?: boolean }).dumpZeroOrder !== false;
+        // A dumped order is absorbed here, so this stub is the whole story and stays hugging
+        // the icon. An order that is *kept* becomes a real beam, and the figure draws that
+        // beam `factor` × an inch off-axis — so the stub has to reach that far to meet it.
+        const lane = (componentLanes(data)[1] ?? 0) * (dumped ? 1 : spread.factor);
         return (
           <g transform={rotation ? `rotate(${rotation})` : undefined}>
             <line
@@ -322,9 +301,9 @@ const NodeSymbol: React.FC<{
           Same `labelDistance` the canvas uses, so the figure matches what was on screen.
           Anchored by the side: a label to the left of a component ends at it, one to the
           right starts at it, and one above or below is centred. */}
-      {(data.showLabel === true || signal) && (() => {
+      {(showName || signal) && (() => {
         const lines = [
-          data.showLabel === true ? { text: data.name, mono: false } : null,
+          showName ? { text: data.name, mono: false } : null,
           signal ? { text: signal, mono: true } : null,
         ].filter(Boolean) as { text: string; mono: boolean }[];
         const widest = lines.reduce((a, b) => (b.text.length > a.text.length ? b : a)).text;
@@ -397,10 +376,15 @@ export const DiagramPanel: React.FC = () => {
 
   const [toggles, setToggles] = useState<AnnotationToggles>({});
   const [zoom, setZoom] = useState(1);
+  const [spreadFactor, setSpreadFactor] = useState(DEFAULT_SPREAD);
   const [showAnnotations, setShowAnnotations] = useState(true);
-  const [showBeamLabels, setShowBeamLabels] = useState(true);
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // One transform for the whole figure: node centres, beams and probes all go through it,
+  // so nothing can be spread by a different amount than anything else.
+  const spread = useMemo(() => makeSpread(nodes as Node<OpticalNodeData>[], spreadFactor),
+    [nodes, spreadFactor]);
 
   const presentCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -444,17 +428,20 @@ export const DiagramPanel: React.FC = () => {
     for (const n of nodes) {
       const d = n.data as OpticalNodeData;
       const g = getNodeGeometry(d.type, d.rotation ?? 0);
-      grow(n.position.x, n.position.y);
-      grow(n.position.x + g.width, n.position.y + g.height);
+      // Spread moves the centre; the box around it keeps its size.
+      const c = spread.point({ x: n.position.x + g.width / 2, y: n.position.y + g.height / 2 });
+      grow(c.x - g.width / 2, c.y - g.height / 2);
+      grow(c.x + g.width / 2, c.y + g.height / 2);
     }
     for (const s of segments) {
       if (s.free) continue;
-      grow(s.x1, s.y1);
-      grow(s.x2, s.y2);
+      const e = spread.segment(s);
+      grow(e.x1, e.y1);
+      grow(e.x2, e.y2);
     }
     const pad = 100;
     return { x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 };
-  }, [nodes, segments]);
+  }, [nodes, segments, spread]);
 
   // One arrow marker per distinct wavelength, rather than one per beam.
   const markerWavelengths = useMemo(
@@ -509,17 +496,19 @@ export const DiagramPanel: React.FC = () => {
         })}
 
         <div style={{ width: 1, height: 16, background: borderColor }} />
-        <button
-          onClick={() => setShowBeamLabels(v => !v)}
-          className="px-2 py-0.5 text-xs rounded border"
-          title="Show λ and power on each beam"
-          style={{
-            background: showBeamLabels ? (theme === 'dark' ? '#1e3a5f' : '#dbeafe') : (theme === 'dark' ? '#1e2030' : '#e2e8f0'),
-            borderColor: showBeamLabels ? '#3b82f6' : (theme === 'dark' ? '#374151' : '#d1d5db'),
-            color: showBeamLabels ? '#60a5fa' : textMuted,
-          }}
-        >
-          ⌇ Beams
+        {/* Spacing: how far apart the figure draws the bench. Components keep their size,
+            so this buys room for names and separates beams that run close together. */}
+        <span className="text-xs" style={{ color: textMuted }}>↔</span>
+        <button onClick={() => setSpreadFactor(f => Math.max(1, Math.round((f - 0.1) * 10) / 10))}
+          className="px-2 py-0.5 text-xs rounded" title="Draw the bench tighter"
+          style={{ background: theme === 'dark' ? '#1e2030' : '#e2e8f0', color: theme === 'dark' ? '#e2e8f0' : '#374151' }}>
+          −
+        </button>
+        <span className="text-xs" style={{ color: textMuted }}>{Math.round(spreadFactor * 100)}%</span>
+        <button onClick={() => setSpreadFactor(f => Math.min(3, Math.round((f + 0.1) * 10) / 10))}
+          className="px-2 py-0.5 text-xs rounded" title="Space the components further apart"
+          style={{ background: theme === 'dark' ? '#1e2030' : '#e2e8f0', color: theme === 'dark' ? '#e2e8f0' : '#374151' }}>
+          +
         </button>
 
         <div style={{ width: 1, height: 16, background: borderColor }} />
@@ -546,7 +535,7 @@ export const DiagramPanel: React.FC = () => {
           style={{ background: theme === 'dark' ? '#1e2030' : '#e2e8f0', color: theme === 'dark' ? '#e2e8f0' : '#374151' }}>
           −
         </button>
-        <button onClick={() => setZoom(1)}
+        <button onClick={() => { setZoom(1); setSpreadFactor(DEFAULT_SPREAD); }}
           className="px-2 py-0.5 text-xs rounded"
           style={{ background: theme === 'dark' ? '#1e2030' : '#e2e8f0', color: theme === 'dark' ? '#e2e8f0' : '#374151' }}>
           Reset
@@ -567,8 +556,13 @@ export const DiagramPanel: React.FC = () => {
           >
             <defs>
               {/* Optical-table grid — one dot per breadboard hole (1 inch pitch) */}
-              <pattern id="diag-grid" width={PX_PER_INCH} height={PX_PER_INCH} patternUnits="userSpaceOnUse">
-                <circle cx={PX_PER_INCH / 2} cy={PX_PER_INCH / 2} r="1" fill={lineColor} />
+              {/* Spread scales the hole pitch with everything else, so a component that was
+                  on a hole is still on one. */}
+              <pattern id="diag-grid"
+                width={PX_PER_INCH * spread.factor} height={PX_PER_INCH * spread.factor}
+                patternUnits="userSpaceOnUse">
+                <circle cx={PX_PER_INCH * spread.factor / 2} cy={PX_PER_INCH * spread.factor / 2}
+                  r="1" fill={lineColor} />
               </pattern>
               {/* Beams that leave the layout are clipped to the figure bounds. */}
               <clipPath id="diag-clip">
@@ -588,7 +582,7 @@ export const DiagramPanel: React.FC = () => {
             {/* Beams — geometry straight from the tracer, identical to the editor */}
             <g clipPath="url(#diag-clip)">
               {segments.map(seg => (
-                <BeamPath key={seg.id} seg={seg} theme={theme} showLabels={showBeamLabels} />
+                <BeamPath key={seg.id} seg={seg} spread={spread} />
               ))}
             </g>
 
@@ -601,6 +595,7 @@ export const DiagramPanel: React.FC = () => {
                 segments={segments}
                 theme={theme}
                 labelScale={labelScale}
+                spread={spread}
               />
             ) : (
               <NodeSymbol
@@ -614,6 +609,7 @@ export const DiagramPanel: React.FC = () => {
                 labelScale={labelScale}
                 signal={detectorSignalLabel(node.data as OpticalNodeData, incidentPower(nodeArrivals.get(node.id)))}
                 labelSide={labelSides.get(node.id) ?? DEFAULT_LABEL_SIDE}
+                spread={spread}
               />
             ))}
           </svg>

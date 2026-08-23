@@ -198,6 +198,17 @@ opens in Illustrator/Inkscape. Per-component annotations (λ, f, θ, R:T…) com
 `getAnnotations` and can be toggled per key / per category. Exports SVG and PNG
 by serialising the one `<svg>` node.
 
+Three conventions are the figure's own, and differ from the canvas on purpose:
+
+- **No text on the beams.** λ, power and spot size are carried by the annotations above the
+  components that set them; repeating them along every segment was the busiest thing in the
+  figure. Waist markers keep their tick, without the number.
+- **Mirrors go unnamed** (`UNNAMED_IN_FIGURE`): a bench has a lot of mirrors and they are all
+  called "M". The editor still labels them, since there a name is how you find a component.
+- **Spacing** (`physics/spread.ts`, `DEFAULT_SPREAD = 1.4`): every distance between
+  components is multiplied, while the components keep their size, so names and beams have
+  room. A display transform only — see the change log for what it must preserve.
+
 ### Colour
 
 `utils/colormap.ts` maps 380–700 nm to a visible-spectrum RGB ramp; 700–1200 nm
@@ -492,6 +503,52 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — the figure gets out of its own way
+
+**No text on the beams in the diagram.** Every segment carried
+`780nm · 43 mW · w=92 µm` in a boxed label, which on a bench with 52 segments is 52 boxes
+sitting on the optics. λ and power are already on the components that set them, in the
+annotations above each icon, so the segment labels were repeating known information in the
+least readable place. The waist marker keeps its tick and dot — where the focus is, without
+the number. `formatPower`, and the diagram's use of `formatSpot`/`formatDetuning`, went with
+them, as did the `⌇ Beams` chip that toggled them.
+
+**Mirrors go unnamed in the figure.** `UNNAMED_IN_FIGURE` = dielectric mirror, dichroic
+mirror, galvo. A bench has a lot of mirrors and every one of them is called "M"; the glyph
+already says mirror, more clearly than three letters beside it at 8 px. The editor still
+labels them — there, a name is how you find the component you meant. PBS cubes and
+retroreflectors keep theirs, since those names carry information ("Cat-eye" is worth saying).
+
+**The figure draws the bench spread out.** `physics/spread.ts` multiplies every distance
+between components by a factor (1.4 by default, `↔` control in the toolbar, 1–3), while the
+components stay the size they are. Zoom could not do this — it scales the icons too, so
+crowding is exactly as bad at 300%.
+
+It is a uniform scaling about the origin, which is what makes it safe: straight lines stay
+straight and **angles are preserved exactly**, so a 15° beam is still at 15° and components
+on a beam are still on it. Two corrections keep it honest:
+
+- **Face trims don't scale.** A beam stops at a component's surface, a distance fixed by the
+  component's own size. Scale that and every optic gets a gap between it and its beam, so
+  each endpoint is pulled back along the beam by the part of the scaling belonging to the
+  trim. The visible free-space run therefore grows by slightly *more* than the factor, which
+  is the correct answer when the components don't grow.
+- **Perpendicular offsets do scale.** A kept 0th order leaving an inch off-axis is a bench
+  distance, not a feature of the device; scaling it is what keeps that beam exactly parallel
+  to where it was. Holding it fixed instead would tilt the beam by (k−1)×1″ over its length.
+  The `aom` dump stub follows the same rule — scaled when the order is a real beam it has to
+  meet, left hugging the icon when the order is absorbed and the stub is the whole story.
+
+The grid's hole pitch scales too, so a component that was on a hole is still on one. And
+nothing traced is touched: `lengthMm`, spot sizes and detunings in the figure are still the
+ones computed for the real bench, and a probe still reads the beam at its true position.
+
+12 tests added (`__tests__/spread.test.ts`): factor 1 as an exact identity, centres moving
+apart by exactly the factor, beam angles preserved at all 24 lattice directions, each beam
+still touching the same face of the same icon (both the target's and the emitter's), free
+beams scaling with nothing to hold on to, waist markers staying on their own segment,
+`lengthMm`/spot sizes untouched, and a dumped order staying parallel. **506 tests total.**
 
 ### 2026-08-23 — labels get out of the way of the beams
 
