@@ -224,13 +224,19 @@ export const DichroicMirrorIcon: React.FC<IconProps & { coatedSide?: 1 | -1 }> =
   );
 };
 
-export const BeamSplitterIcon: React.FC<IconProps & { label?: string }> = ({ size = 24, color = 'currentColor', label }) => (
+/**
+ * Beamsplitter cube — polarising or not; they differ in physics, not in appearance.
+ *
+ * No lettering: the name is on the component's own label, in the properties panel and in
+ * the diagram's annotations, and a three-letter word baked into a 24 px glyph is unreadable
+ * at canvas scale and wrong the moment the cube is turned.
+ */
+export const BeamSplitterIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
     <rect x="6" y="6" width="12" height="12" rx="1" fill={color} fillOpacity="0.1"/>
     {/* Internal surface along −45°, like MirrorIcon: the caller turns the whole cube,
         so rotation 90 draws "\" exactly as the two-variant version used to. */}
     <line x1="6" y1="18" x2="18" y2="6" strokeWidth="2" strokeLinecap="round"/>
-    {label && <text x="12" y="22.5" textAnchor="middle" fontSize="4.5" fill={color} stroke="none" fontFamily="sans-serif">{label}</text>}
   </svg>
 );
 
@@ -618,7 +624,7 @@ export function getNodeIcon(
     case 'dichroic_mirror':   return <DichroicMirrorIcon size={size} color={color} coatedSide={hatchSide === 1 ? -1 : 1} />;
     case 'retroreflector':    return <RetroreflectorIcon size={size} color={color} />;
     case 'npbs':              return <BeamSplitterIcon size={size} color={color} />;
-    case 'pbs':               return <BeamSplitterIcon size={size} color={color} label="PBS" />;
+    case 'pbs':               return <BeamSplitterIcon size={size} color={color} />;
     case 'nonlinear_crystal': return <CrystalIcon size={size} color={color} />;
     case 'shg_crystal':       return <SHGCrystalIcon size={size} color={color} />;
     case 'sfg_crystal':       return <SFGCrystalIcon size={size} color={color} />;

@@ -482,15 +482,26 @@ export function autoRoute(
     // Record the beam's incoming direction for handle placement (first entry wins).
     if (!isSecondEntry) result.beamInDirs.set(best.id, ray.dir);
 
-    // Rotation: mirrors and splitters keep their user-set orientation; other symbol
-    // nodes turn to face the beam, at whatever lattice angle it arrives on — a beam at
-    // 45° gets a component at 45°, not one squared up to the nearest axis. Second
-    // entries never re-rotate. Box nodes keep their rotation because their artwork is
-    // drawn unturned regardless (see nodeGeometry.getNodeGeometry).
-    const bestG = artworkOf(best.data.type);
-    const autoRot = (isSecondEntry || MIRROR_TYPES.has(best.data.type) || bestG.symbolType !== 'symbol')
+    // Rotation: everything that lies *along* a beam turns to face it, at whatever lattice
+    // angle it arrives on — a beam at 45° gets a component at 45°, not one squared up to
+    // the nearest axis. Instrument nodes (an AOM, an EOM, a camera) are included: they are
+    // inline devices like any other, and since their artwork turns too they now face the
+    // beam properly instead of sitting square while the physics treated them as turned.
+    //
+    // Two exceptions. Mirror-like components are *pointed*, not aligned — their surface
+    // sits at 45° across the body, so the user chooses where it sends the beam. And a
+    // second beam never re-aims a component the first one already placed.
+    //
+    // A component whose lanes encode a physical *side* — an acousto-optic cell, whose 0th
+    // order peels off towards its transducer — aligns to the beam's **axis** rather than
+    // its direction. Turning such a cell to face a beam running backwards through it would
+    // flip which side the dumped order leaves by, and a lane is a place on the device: that
+    // invariance is what lets a double-passed cell retrace its own path.
+    const beamAngle = snapAngle(angleOf(ray.dir));
+    const sidedLanes = componentLanes(best.data).length > 1;
+    const autoRot = (isSecondEntry || MIRROR_TYPES.has(best.data.type))
       ? (best.data.rotation ?? 0)
-      : snapAngle(angleOf(ray.dir));
+      : (sidedLanes ? beamAngle % 180 : beamAngle);
 
     if (!isSecondEntry) result.rotations.set(best.id, autoRot);
 
@@ -508,9 +519,17 @@ export function autoRoute(
     // this beam is `hit − laneNormal · L`. For every single-lane component L is 0 and
     // this is just `hit`.
     const lanes = componentLanes(best.data);
-    // Same rotation the hit test used. It coincides with autoRot here because every
-    // multi-lane component is a box node that keeps its user-set rotation.
-    const laneN = laneNormal(best.data.rotation ?? 0);
+    /**
+     * Measured along the rotation this trace just *decided*, not the one still in the
+     * node's data — an acousto-optic cell that has turned to face the beam must put its
+     * 0th order on the new normal, or the dumped order leaves along the beam axis instead
+     * of beside it.
+     *
+     * Safe against the hit test having used the stored rotation: the two can only differ
+     * when the beam runs across the old body axis, and in that case every lane projects to
+     * the same place, so the hit test falls back to lane 0 and `entryOffset` is 0.
+     */
+    const laneN = laneNormal(autoRot);
     const entryOffset = lanes[bestLane] ?? 0;
     const laneCentre = {
       x: hit.x - laneN.dx * entryOffset,

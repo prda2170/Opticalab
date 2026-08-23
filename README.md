@@ -209,7 +209,7 @@ behind each design decision, gotchas that have bitten before, and a change log.
 npm test
 ```
 
-467 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
+478 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
 Gaussian propagation, polarisation, AOM orders and double passes, the angle lattice, face
 trimming, detectors, layout-file loading and migration, the workspace's document rules, the dirty/file-identity logic behind Save, session
 snapshots, and the clipboard. They are plain functions — no DOM, no React —

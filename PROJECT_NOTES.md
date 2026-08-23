@@ -303,8 +303,9 @@ Key points of the design:
   exit face, `centre + width/2`, which is what the router trims to — icon and beam must
   keep agreeing there, and a test pins it. Height is otherwise free to choose, since a
   horizontal beam's trim comes from `width/2`.
-- **Known limitations to state in the UI:** lane separation is a caricature; box nodes
-  still don't auto-rotate to face the beam. The cat-eye's focal length *is* modelled
+- **Known limitations to state in the UI:** lane separation is a caricature. (Box nodes
+  auto-rotate as of 2026-08-23; multi-lane cells align to the beam *axis* so their dump
+  side cannot flip.) The cat-eye's focal length *is* modelled
   (see the change log), so a badly placed one shows a mis-sized return beam — but
   nothing warns about it, and beam walk with f_RF is still not modelled at all
   (the lane model has no angle to walk).
@@ -485,6 +486,47 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — instruments face the beam; no lettering in the PBS
+
+**Acousto-optics and other instrument nodes now turn to face the beam.** `autoRot` excluded
+box nodes, and for a reason that expired in stage 4: their artwork was drawn unturned, so
+rotating them would have made the drawing disagree with the physics. Their artwork turns
+now, so the exclusion is gone and an AOM, EOM, camera or profiler aligns to its beam at any
+lattice angle, like every other inline device. Mirror-like components are still left alone —
+a mirror is *aimed*, not aligned.
+
+**With one real exception, which the existing tests caught.** An acousto-optic cell's 0th
+order peels off towards its transducer, so its lanes encode a physical *side*. Turning the
+cell to face a beam running backwards through it would flip which side the dumped order
+leaves by — and a lane is a place on the device: that invariance is exactly what lets a
+double-passed cell retrace its own path. So a component with more than one lane aligns to
+the beam's **axis** (`beamAngle % 180`) rather than its direction. Everything else takes the
+direction, which is what a detector wants.
+
+**And the lane normal had to follow the decided rotation**, not the one still in the node's
+data — the same staleness that bit face trimming in stage 3. Otherwise a freshly turned cell
+dumps its 0th order *along* the beam axis instead of beside it. Safe against the hit test
+having used the stored rotation: the two can only differ when the beam runs across the old
+body axis, and there every lane projects to the same place, so the hit test falls back to
+lane 0 and the offset is zero anyway.
+
+Verified in the app: a vertical beam into a freshly dropped AOM turns it to 90°, the
+diffracted order continues downward at 80 mW and +80 MHz, and the 0th order starts one inch
+**across** the beam rather than along it.
+
+**The PBS glyph lost its lettering.** `BeamSplitterIcon` drew "PBS" inside a 24 px cube: the
+name is already on the component's label, in the properties panel and in the diagram's
+annotations, and three letters baked into a glyph that small are unreadable at canvas scale
+and upside down the moment the cube is turned. The `label` prop went with it, since NPBS
+never used it. The palette row is still called PBS.
+
+11 tests added (`__tests__/instrumentOrientation.test.ts`): instrument nodes turning to the
+four axes and to off-axis lattice angles, a camera facing its light, mirror-like components
+staying where they were pointed, an acousto-optic cell turning for a perpendicular beam but
+*not* flipping for a reversed one, the dumped order landing on the same physical side either
+way, the lane separation lying along the cell's own normal at every one of the 24 lattice
+angles, and first-arrival aiming still holding. **478 tests total.**
 
 ### 2026-08-23 — fibre-coupled amplifier: an amplifier that is a source
 
