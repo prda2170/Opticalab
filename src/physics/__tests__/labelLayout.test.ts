@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { labelLayout, LABEL_BASE_PX } from '../../utils/labelLayout';
 import { getNodeGeometry } from '../../utils/nodeGeometry';
-import { LABEL_SCALE_MIN, LABEL_SCALE_MAX } from '../../store/layoutStore';
+import { LABEL_SCALE_MIN, LABEL_SCALE_MAX } from '../../store/workspaceStore';
 import { PALETTE } from '../../utils/palette';
 
 describe('labelLayout', () => {

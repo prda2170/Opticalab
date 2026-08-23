@@ -12,7 +12,8 @@ import type { BeamEdgeData } from '../../types/components';
 import { wavelengthToRGB } from '../../utils/colormap';
 import { formatSpot } from '../../physics/scale';
 import { formatDetuning } from '../../physics/wavelength';
-import { useLayoutStore } from '../../store/layoutStore';
+import { useLayout } from '../../store/layoutContext';
+import { useWorkspace } from '../../store/workspaceStore';
 
 
 const BeamEdge: React.FC<EdgeProps<Edge<BeamEdgeData>>> = ({
@@ -21,21 +22,21 @@ const BeamEdge: React.FC<EdgeProps<Edge<BeamEdgeData>>> = ({
   data,
 }) => {
   const isAuto     = id.startsWith('auto_');
-  const showLabels = useLayoutStore(s => s.showBeamLabels);
+  const showLabels = useWorkspace(s => s.showBeamLabels);
 
   // Subscribe to this edge's beam values as primitives. zustand v5 has no
   // equality-function argument, so selecting scalars (rather than the BeamState
   // object, which is rebuilt on every trace) is what actually keeps unrelated
   // beam changes from re-rendering every edge.
-  const beamWl    = useLayoutStore(s => s.beamMap.get(id)?.wavelength);
-  const beamPower = useLayoutStore(s => s.beamMap.get(id)?.power);
-  const beamPol   = useLayoutStore(s => s.beamMap.get(id)?.polarization.type);
-  const beamHand  = useLayoutStore(s => {
+  const beamWl    = useLayout(s => s.beamMap.get(id)?.wavelength);
+  const beamPower = useLayout(s => s.beamMap.get(id)?.power);
+  const beamPol   = useLayout(s => s.beamMap.get(id)?.polarization.type);
+  const beamHand  = useLayout(s => {
     const p = s.beamMap.get(id)?.polarization;
     return p?.type === 'circular' ? p.handedness : undefined;
   });
-  const beamSpot  = useLayoutStore(s => s.beamMap.get(id)?.w);
-  const beamDet   = useLayoutStore(s => s.beamMap.get(id)?.detuningHz);
+  const beamSpot  = useLayout(s => s.beamMap.get(id)?.w);
+  const beamDet   = useLayout(s => s.beamMap.get(id)?.detuningHz);
 
   // beamMap comes from the beam tracer and is per-ray, so it is authoritative for
   // every edge it covers — including co-propagating beams sharing a source handle.

@@ -1,6 +1,6 @@
 // Right-side properties panel — compact inline-label layout
 import React from 'react';
-import { useLayoutStore } from '../../store/layoutStore';
+import { useLayout } from '../../store/layoutContext';
 import type { OpticalNodeData } from '../../types/components';
 import { CATEGORY_COLORS } from '../../types/components';
 import type { BeamState } from '../../types/beam';
@@ -514,12 +514,12 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export const PropertiesPanel: React.FC = () => {
-  const nodes          = useLayoutStore(s => s.nodes);
-  const selectedNodeId = useLayoutStore(s => s.selectedNodeId);
-  const updateNodeData = useLayoutStore(s => s.updateNodeData);
-  const nodeBeams      = useLayoutStore(s => s.nodeBeams);
-  const nodeArrivals   = useLayoutStore(s => s.nodeArrivals);
-  const allWarnings    = useLayoutStore(s => s.warnings);
+  const nodes          = useLayout(s => s.nodes);
+  const selectedNodeId = useLayout(s => s.selectedNodeId);
+  const updateNodeData = useLayout(s => s.updateNodeData);
+  const nodeBeams      = useLayout(s => s.nodeBeams);
+  const nodeArrivals   = useLayout(s => s.nodeArrivals);
+  const allWarnings    = useLayout(s => s.warnings);
 
   const node = nodes.find(n => n.id === selectedNodeId);
 

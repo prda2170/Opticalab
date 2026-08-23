@@ -385,7 +385,24 @@ Facts that shape the design:
 
 ### Store shape
 
-`layoutStore` holds the persisted layout (`nodes`, user `edges`) plus three
+**Two stores, and the split is the point.** `createLayoutStore()` is a *factory*: every
+open document gets its own instance, holding that document's layout, trace output, undo
+history and selection. `workspaceStore` is the single app-wide store, holding the list of
+open documents, which one is active, and the preferences that belong to the window rather
+than to a bench (`theme`, `activeView`, `showBeamLabels`, `labelScale`).
+
+Components never import a document store. They call `useLayout(selector)` from
+`layoutContext.ts`, which reads whichever instance the surrounding
+`LayoutContext.Provider` supplies — so switching documents is a change of provider value,
+and no component knows there is more than one. `useLayoutApi()` is the escape hatch for a
+read that must not subscribe (`EditorCanvas`'s reload effect wants the state *now*).
+
+Two things forced the factory rather than a `documents: Record<DocId, …>` map inside one
+store: `lastRouteKey`, which memoises the trace, is a closure variable, and
+`history`/`future` must never let an undo in one document pop another's state. Both come
+out per-document for free this way.
+
+Each document store holds the persisted layout (`nodes`, user `edges`) plus three
 derived outputs, all published by one `trace()` helper that calls `autoRoute`:
 
 | Field | Keyed by | Consumed by |
@@ -396,7 +413,8 @@ derived outputs, all published by one `trace()` helper that calls `autoRoute`:
 | `nodeArrivals: Map<id, BeamState[]>` | node id | `PropertiesPanel`, `OpticalNode`, `DiagramPanel` — a detector reads the total |
 
 `routeKey()` memoises the trace over node data **and positions** plus user
-wiring. `recomputeBeams()` forces a re-trace from store state.
+wiring. `recomputeBeams()` forces a re-trace from store state. An inactive document simply
+stops tracing — nothing calls it — and keeps its last results until it is shown again.
 
 ---
 
@@ -463,6 +481,44 @@ wiring. `recomputeBeams()` forces a re-trace from store state.
 ---
 
 ## 6. Change log
+
+### 2026-08-22 — one store per document (tabs, phase 1)
+
+Groundwork for opening several layouts at once. **Nothing user-visible changes**: there is
+exactly one document, and it behaves as before. Phase 2 adds the tab strip.
+
+**The store is now a factory.** `createLayoutStore()` returns a vanilla zustand store per
+document; `workspaceStore` is the app-wide one, holding the document list, the active id
+and the preferences that belong to the window. A `Record<DocId, DocState>` inside one store
+was the obvious alternative and the wrong one: `lastRouteKey` (trace memoisation) is a
+closure variable and `history`/`future` must not let an undo in one document pop another's
+state. Both are per-document by construction this way, with no bookkeeping.
+
+**Preferences moved out of the document** — `theme`, `showBeamLabels`, `labelScale`, and
+`activeTab` renamed to **`activeView`** (it means editor-vs-diagram, and would have
+collided with document tabs). Moving them now avoided touching ~15 of the 49 call sites
+twice, and it means switching documents will not reset the theme.
+
+**All 49 `useLayoutStore(...)` call sites across 9 files** became `useLayout(...)` for
+document state or `useWorkspace(...)` for preferences. The one non-reactive read
+(`EditorCanvas`'s reload effect) uses `useLayoutApi()`.
+
+**The panels are keyed by document id.** Inactive documents will *unmount* rather than
+hide, because xyflow measures nodes with a `ResizeObserver` and a zero-size canvas never
+gets `node.measured` — which means no edges at all, silently (§5). That also means phase 2
+has to persist each document's viewport, since the canvas currently mounts with `fitView`
+and would otherwise re-frame the layout on every tab switch.
+
+Verified as a pure refactor, through the running app: `Layouts/D1_Layout.json` loads via
+the real Load button to the same 41 nodes with the same migration dialog; the theme toggle
+still works; the Diagram tab draws the same 231 beam lines for the active document; an
+editor → diagram → editor round trip keeps all 41 nodes. 370 tests unchanged (they import
+`src/physics/` and never touch a store), `tsc -b` and build clean, lint back to the same 7
+pre-existing errors.
+
+Still to come: tab strip and document open/close (phase 2), per-document file identity with
+Save vs Save As and a close-confirmation for unsaved work (phase 3), viewport persistence
+(phase 4), and session restore into IndexedDB (phase 5).
 
 ### 2026-08-22 — installable as a PWA, for handing to colleagues
 

@@ -174,7 +174,7 @@ src/
 │   ├── Diagram/        read-only figure renderer
 │   ├── Nodes/          component artwork and node rendering
 │   └── Edges/          beam rendering on the canvas
-├── store/            zustand store; runs the tracer, holds the results
+├── store/            one store per open document, plus the app-wide workspace store
 ├── types/            component data and beam state
 └── utils/            geometry boxes, palette, export, formatting
 ```

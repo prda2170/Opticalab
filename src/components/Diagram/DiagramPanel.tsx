@@ -5,7 +5,8 @@
 // it always matches the editor canvas exactly. Component geometry comes from
 // getNodeGeometry, the same source the router snaps against.
 import React, { useState, useMemo, useRef } from 'react';
-import { useLayoutStore } from '../../store/layoutStore';
+import { useLayout } from '../../store/layoutContext';
+import { useWorkspace } from '../../store/workspaceStore';
 import { wavelengthToRGB, wavelengthDashArray } from '../../utils/colormap';
 import { getNodeIcon } from '../Nodes/NodeIcons';
 import { iconDimensions } from '../../utils/iconMetrics';
@@ -367,11 +368,11 @@ const NodeSymbol: React.FC<{
 };
 
 export const DiagramPanel: React.FC = () => {
-  const nodes    = useLayoutStore(s => s.nodes);
-  const segments = useLayoutStore(s => s.segments);
-  const theme    = useLayoutStore(s => s.theme);
-  const labelScale = useLayoutStore(s => s.labelScale);
-  const nodeArrivals = useLayoutStore(s => s.nodeArrivals);
+  const nodes    = useLayout(s => s.nodes);
+  const segments = useLayout(s => s.segments);
+  const theme    = useWorkspace(s => s.theme);
+  const labelScale = useWorkspace(s => s.labelScale);
+  const nodeArrivals = useLayout(s => s.nodeArrivals);
 
   const [toggles, setToggles] = useState<AnnotationToggles>({});
   const [zoom, setZoom] = useState(1);

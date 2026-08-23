@@ -21,7 +21,8 @@ import '@xyflow/react/dist/style.css';
 // Override xyflow handle styles AFTER the xyflow CSS so our rules win
 import '../../styles/handles.css';
 
-import { useLayoutStore } from '../../store/layoutStore';
+import { useLayout, useLayoutApi } from '../../store/layoutContext';
+import { useWorkspace } from '../../store/workspaceStore';
 import OpticalNode from '../Nodes/OpticalNode';
 import BeamEndpointNode from '../Nodes/BeamEndpointNode';
 import PowerProbeNode from '../Nodes/PowerProbeNode';
@@ -51,11 +52,15 @@ export const EditorCanvas: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState<AppEdge>([]);
 
-  const canvasVersion   = useLayoutStore(s => s.canvasVersion);
-  const theme           = useLayoutStore(s => s.theme);
-  const setSelectedNode = useLayoutStore(s => s.setSelectedNode);
-  const syncFromCanvas  = useLayoutStore(s => s.syncFromCanvas);
-  const saveSnapshot    = useLayoutStore(s => s.saveSnapshot);
+  const canvasVersion   = useLayout(s => s.canvasVersion);
+  const theme           = useWorkspace(s => s.theme);
+  const setSelectedNode = useLayout(s => s.setSelectedNode);
+  const syncFromCanvas  = useLayout(s => s.syncFromCanvas);
+  const saveSnapshot    = useLayout(s => s.saveSnapshot);
+
+  // The document's store object, for reads that must not subscribe: the reload effect
+  // below wants the state as it is *now*, not as it was when the component last rendered.
+  const layoutApi = useLayoutApi();
 
   const { screenToFlowPosition } = useReactFlow();
 
@@ -63,7 +68,7 @@ export const EditorCanvas: React.FC = () => {
   // ── Reload from Zustand on undo/redo/load ──────────────────────────────────
   // Keep existing auto-edges when reloading (they're not stored in Zustand history).
   useEffect(() => {
-    const state = useLayoutStore.getState();
+    const state = layoutApi.getState();
     const loaded = (state.nodes as AppNode[]).map(n => ({
       ...n,
       draggable: !(n.data as OpticalNodeData).locked,
@@ -82,7 +87,7 @@ export const EditorCanvas: React.FC = () => {
       const freshAuto = autoEdges.filter(e => !userIds.has(e.id));
       return [...userEdges, ...freshAuto];
     });
-  }, [canvasVersion, setNodes, setEdges]);
+  }, [canvasVersion, layoutApi, setNodes, setEdges]);
 
   // ── Auto-routing ───────────────────────────────────────────────────────────
   // Runs after node changes only (not edge changes, to avoid feedback loops).

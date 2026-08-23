@@ -1,13 +1,18 @@
 import React from 'react';
-import { useLayoutStore } from './store/layoutStore';
+import { LayoutContext } from './store/layoutContext';
+import { useWorkspace, activeDocument } from './store/workspaceStore';
 import { EditorPanel } from './components/Editor/EditorPanel';
 import { DiagramPanel } from './components/Diagram/DiagramPanel';
 import { UpdatePrompt } from './components/UpdatePrompt';
 
 const App: React.FC = () => {
-  const activeTab = useLayoutStore(s => s.activeTab);
-  const setActiveTab = useLayoutStore(s => s.setActiveTab);
-  const theme = useLayoutStore(s => s.theme);
+  const activeView = useWorkspace(s => s.activeView);
+  const setActiveView = useWorkspace(s => s.setActiveView);
+  const theme = useWorkspace(s => s.theme);
+  // The document showing right now. Everything below reads its state through
+  // LayoutContext, so switching documents is a change of provider value — no component
+  // needs to know that more than one document exists.
+  const doc = useWorkspace(activeDocument);
 
   const isDark = theme === 'dark';
 
@@ -33,9 +38,9 @@ const App: React.FC = () => {
           {(['editor', 'diagram'] as const).map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => setActiveView(tab)}
               className={`px-4 py-1.5 text-xs font-medium capitalize transition-colors ${
-                activeTab === tab
+                activeView === tab
                   ? isDark
                     ? 'bg-blue-600 text-white'
                     : 'bg-blue-500 text-white'
@@ -50,9 +55,15 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content. Keyed by document, so switching tabs mounts a clean canvas rather
+          than trying to reuse one: xyflow measures nodes with a ResizeObserver, and a
+          hidden or reused canvas is how you end up with no edges at all (PROJECT_NOTES §5). */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'editor' ? <EditorPanel /> : <DiagramPanel />}
+        <LayoutContext.Provider value={doc.store}>
+          <div key={doc.id} className="h-full">
+            {activeView === 'editor' ? <EditorPanel /> : <DiagramPanel />}
+          </div>
+        </LayoutContext.Provider>
       </div>
 
       {/* Registers the service worker, and offers the reload when a new build lands. */}

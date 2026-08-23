@@ -1,21 +1,22 @@
 // Top toolbar for the Editor panel
 import React from 'react';
-import { useLayoutStore, LABEL_SCALE_MIN, LABEL_SCALE_MAX } from '../../store/layoutStore';
+import { useLayout } from '../../store/layoutContext';
+import { useWorkspace, LABEL_SCALE_MIN, LABEL_SCALE_MAX } from '../../store/workspaceStore';
 import { layoutToJSON, layoutFromJSON, saveTextAs } from '../../utils/export';
 
 export const Toolbar: React.FC = () => {
-  const undo             = useLayoutStore(s => s.undo);
-  const redo             = useLayoutStore(s => s.redo);
-  const history          = useLayoutStore(s => s.history);
-  const future           = useLayoutStore(s => s.future);
-  const loadLayout       = useLayoutStore(s => s.loadLayout);
-  const getLayout        = useLayoutStore(s => s.getLayout);
-  const theme            = useLayoutStore(s => s.theme);
-  const setTheme         = useLayoutStore(s => s.setTheme);
-  const showBeamLabels   = useLayoutStore(s => s.showBeamLabels);
-  const toggleBeamLabels = useLayoutStore(s => s.toggleBeamLabels);
-  const labelScale       = useLayoutStore(s => s.labelScale);
-  const setLabelScale    = useLayoutStore(s => s.setLabelScale);
+  const undo             = useLayout(s => s.undo);
+  const redo             = useLayout(s => s.redo);
+  const history          = useLayout(s => s.history);
+  const future           = useLayout(s => s.future);
+  const loadLayout       = useLayout(s => s.loadLayout);
+  const getLayout        = useLayout(s => s.getLayout);
+  const theme            = useWorkspace(s => s.theme);
+  const setTheme         = useWorkspace(s => s.setTheme);
+  const showBeamLabels   = useWorkspace(s => s.showBeamLabels);
+  const toggleBeamLabels = useWorkspace(s => s.toggleBeamLabels);
+  const labelScale       = useWorkspace(s => s.labelScale);
+  const setLabelScale    = useWorkspace(s => s.setLabelScale);
 
   const handleSave = async () => {
     const { nodes, edges } = getLayout();

@@ -5,11 +5,11 @@ import { Sidebar } from './Sidebar';
 import { EditorCanvas } from './EditorCanvas';
 import { PropertiesPanel } from './PropertiesPanel';
 import { Toolbar } from './Toolbar';
-import { useLayoutStore } from '../../store/layoutStore';
+import { useLayout } from '../../store/layoutContext';
 
 export const EditorPanel: React.FC = () => {
-  const undo = useLayoutStore(s => s.undo);
-  const redo = useLayoutStore(s => s.redo);
+  const undo = useLayout(s => s.undo);
+  const redo = useLayout(s => s.redo);
 
   // Global keyboard shortcuts
   useEffect(() => {

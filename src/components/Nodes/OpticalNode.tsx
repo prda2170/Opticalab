@@ -9,7 +9,8 @@ import { labelLayout, type LabelLayout } from '../../utils/labelLayout';
 import { detectorSignalLabel, incidentPower as incidentPowerOf } from '../../physics/detector';
 import { mirrorReflect } from '../../physics/geometry';
 import { componentLanes } from '../../physics/lanes';
-import { useLayoutStore } from '../../store/layoutStore';
+import { useLayout } from '../../store/layoutContext';
+import { useWorkspace } from '../../store/workspaceStore';
 
 // ── Direction helpers ─────────────────────────────────────────────────────────
 
@@ -255,13 +256,13 @@ const LockSVG = ({ color }: { color: string }) => (
 );
 
 const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, selected }) => {
-  const setSelectedNode = useLayoutStore(s => s.setSelectedNode);
-  const theme           = useLayoutStore(s => s.theme);
-  const labelScale      = useLayoutStore(s => s.labelScale);
+  const setSelectedNode = useLayout(s => s.setSelectedNode);
+  const theme           = useWorkspace(s => s.theme);
+  const labelScale      = useWorkspace(s => s.labelScale);
   // Total of every beam landing here, not just the strongest: a photodiode with two
   // beams on it reads their sum. Summed inside the selector so this stays a scalar and
   // the node doesn't re-render on every trace (zustand v5 has no equality argument).
-  const incidentPower   = useLayoutStore(s => incidentPowerOf(s.nodeArrivals.get(id)));
+  const incidentPower   = useLayout(s => incidentPowerOf(s.nodeArrivals.get(id)));
   const rotation        = (data as { rotation?: number }).rotation ?? 0;
   const geometry        = getNodeGeometry(data.type, rotation);
   // Unrotated size, i.e. the shape of the artwork before it is turned. Icon sizing must

@@ -8,18 +8,19 @@ import React, { memo, useCallback, useRef, useState } from 'react';
 import { useReactFlow, type NodeProps, type Node } from '@xyflow/react';
 import type { PowerProbeData } from '../../types/components';
 import { CATEGORY_COLORS } from '../../types/components';
-import { useLayoutStore } from '../../store/layoutStore';
+import { useLayout } from '../../store/layoutContext';
+import { useWorkspace } from '../../store/workspaceStore';
 import { probeBeam, probeLines } from '../../physics/probe';
 import { getNodeGeometry } from '../../utils/nodeGeometry';
 
 const RADIUS = 5;
 
 const PowerProbeNode: React.FC<NodeProps<Node<PowerProbeData>>> = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) => {
-  const segments      = useLayoutStore(s => s.segments);
-  const theme         = useLayoutStore(s => s.theme);
-  const labelScale    = useLayoutStore(s => s.labelScale);
-  const updateNodeData = useLayoutStore(s => s.updateNodeData);
-  const setSelectedNode = useLayoutStore(s => s.setSelectedNode);
+  const segments      = useLayout(s => s.segments);
+  const theme         = useWorkspace(s => s.theme);
+  const labelScale    = useWorkspace(s => s.labelScale);
+  const updateNodeData = useLayout(s => s.updateNodeData);
+  const setSelectedNode = useLayout(s => s.setSelectedNode);
   const { getZoom }   = useReactFlow();
 
   const g = getNodeGeometry('power_probe');
