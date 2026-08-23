@@ -92,6 +92,10 @@ EditorCanvas ──── xyflow local state (nodes, edges)
     narrows the axial half-extent only; the cross extent is the artwork's.
   Every component's artwork is drawn unrotated at its own size and then turned, centred
   in the occupied box — symbols, instruments and mirrors alike.
+- **Layout files are versioned, and the version is enforced on load** (`LAYOUT_VERSION`,
+  `MIGRATIONS` in `utils/export.ts`). A schema change means a minor bump plus a migration
+  entry; anything a load has to change or drop comes back in `notes` and is shown to the
+  user. A newer *major* version is refused rather than guessed at.
 - **The 1 inch hole grid is decorative.** Components snap to *beams*, not to holes,
   so once beams tilt off-axis they stop coinciding. The grid stays as visual
   reference for the table, nothing more.
@@ -459,6 +463,67 @@ wiring. `recomputeBeams()` forces a re-trace from store state.
 ---
 
 ## 6. Change log
+
+### 2026-08-22 — layout files carry a version that means something; dev port aligned
+
+Groundwork for handing the app to other people: their files have to survive the next schema
+change, and the desktop shell has to start.
+
+**`LAYOUT_VERSION = '1.1'`, and loading actually checks it.** `layoutToJSON` stamped a
+version from the beginning; `layoutFromJSON` threw it away and did
+`{ nodes: data.nodes ?? [], edges: data.edges ?? [] }`. That is fine until a field is
+renamed — and three have been (`responsivity`→`signalFactor`,
+`gain`+`saturatedPower`→`outputPower`, and the removal of the `optomechanics` category and
+the vacuum chamber). An old file then loads with the field *missing*, which is not the same
+as the field being unset: an amplifier with no `outputPower` computed
+`Math.max(0, undefined)` = **NaN** and put a NaN power on every beam downstream of it.
+
+Loading is now: parse → check version → migrate → validate → **report**.
+
+- **Migrations are a list**, oldest first, each with the version it brings a file up to and
+  a per-node transformation. A file is run through every migration newer than its own
+  version, so adding the next one is one entry and a minor bump.
+- **The 1.0 → 1.1 migration.** `responsivity` (A/W) → `signalFactor` (V/mW) assuming the
+  reference case of a bare diode into 50 Ω, `V/mW = R × 50 × 1e-3` — there is no exact
+  conversion, since the missing factor is the transimpedance, so the assumption is stated
+  in the note the user sees. Amplifier `gain`/`saturatedPower` → `outputPower`, taking the
+  saturated figure, which is the closest single number to what the old saturable model
+  delivered when driven.
+- **Unknown component types are dropped, with their names in the note.** Keyed off the
+  geometry table via the new `isKnownComponentType`, so removed components and typos are
+  both caught, rather than rendering as a fallback 60×36 mystery box the beam passes
+  through. Edges pointing at a dropped node go too, since a dangling reference upsets
+  xyflow. Saved `beam_endpoint` phantoms are discarded silently — every trace regenerates
+  them.
+- **Malformed nodes are skipped**, not handed to the canvas: an entry needs a string `id`
+  and finite `position.x/y` to be placeable at all.
+- **Throws only when there is nothing to load** — unparseable JSON, no node array, or a
+  *newer major* version, which is refused rather than guessed at. A newer *minor* is read,
+  since minors are additive by definition.
+- **Nothing changes silently.** `LoadedLayout.notes` carries a human-readable line for
+  every migration and every drop, and the toolbar shows them in a dialog after loading.
+  The old `alert('Invalid layout file.')` is replaced by the actual error message.
+
+Verified against the real `Layouts/D1_Layout.json` (41 nodes, format 1.0): detected as 1.0,
+its one legacy photodiode migrated `0.5 A/W → 0.025 V/mW` with a note explaining the 50 Ω
+assumption, all 41 nodes kept, 49 beam segments traced, no non-finite beams, no warnings,
+not truncated.
+
+**Dev-server port aligned.** `electron/main.cjs` loaded `localhost:5173` while
+`vite.config.ts` pins `port: 7432, strictPort: true`, so `npm run electron:dev` waited on a
+port nothing would ever serve. The port now lives in one constant in `main.cjs`
+(overridable with `VITE_DEV_SERVER_URL`, with the comment pointing at the config), and the
+`wait-on` URL and `.claude/launch.json` match it. Production is unaffected — it uses
+`loadFile`.
+
+20 tests added (`__tests__/layoutFile.test.ts`): version stamping and a clean round trip
+with no notes; refusals for non-JSON, non-layouts and a newer major, and acceptance of a
+newer minor and of a file with no version at all; both migrations including their fallbacks
+and the note text; a migrated amplifier tracing to **finite** power end-to-end, paired with
+a test that the same unmigrated data does *not*; removed components and their edges
+dropped with names reported; malformed nodes skipped; phantoms discarded quietly; and a
+five-component 1.0 bench loading, migrating and tracing with finite power throughout.
+**370 tests total.**
 
 ### 2026-08-22 — angle generalisation, stage 4: the lattice is open
 

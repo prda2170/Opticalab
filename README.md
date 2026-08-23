@@ -76,18 +76,22 @@ things are outstanding:
   account and notarization, and cannot be built from Windows at all. A CI matrix
   (windows/macos/ubuntu) is the usual way around the last part.
 
-Note that `npm run electron:dev` points at port 5173 while the dev server runs on 7432, so
-that script needs one of the two numbers changed before it will attach.
-
 ## Layout files
 
-Save writes a JSON file containing every node and edge, with a `version` field.
+Save writes a JSON file containing every node and edge, stamped with a schema version
+(`LAYOUT_VERSION` in `src/utils/export.ts`).
 
-**The version field is not yet checked on load.** Layouts saved by an older build load
-with whatever fields they had, so a renamed property comes back missing — see
-[PROJECT_NOTES.md](PROJECT_NOTES.md) §4. Worth fixing before other people rely on it.
+Loading checks that version and migrates forward. Fields have been renamed more than once,
+so an older file is brought up to date rather than read as though the field were simply
+unset — and anything migrated or dropped is reported in a dialog, so what you see and what
+the file says never differ silently. A file from a *newer* major version is refused instead
+of guessed at.
 
-`Layouts/D1_Layout.json` is a real example: a Rb D1 bench with an AOM double pass.
+Adding a schema change: bump the minor version and add an entry to `MIGRATIONS`, which is a
+list of per-node transformations applied in order to any file older than each entry.
+
+`Layouts/D1_Layout.json` is a real example — a Rb D1 bench with AOM double passes — and it
+is also a format-1.0 file, so it exercises the migration path on load.
 
 ## How it fits together
 
@@ -128,9 +132,9 @@ behind each design decision, gotchas that have bitten before, and a change log.
 npm test
 ```
 
-350 tests, all in `src/physics/__tests__/`, covering the tracer, the physics table,
+370 tests, all in `src/physics/__tests__/`, covering the tracer, the physics table,
 Gaussian propagation, polarisation, AOM orders and double passes, the angle lattice, face
-trimming, detectors and the layout helpers. They are plain functions — no DOM, no React —
+trimming, detectors, and layout-file loading and migration. They are plain functions — no DOM, no React —
 which is why they run in about two seconds.
 
 `npm run lint` currently reports 7 pre-existing errors in `Toolbar.tsx` and `NodeIcons.tsx`

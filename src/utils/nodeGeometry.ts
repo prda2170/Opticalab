@@ -191,3 +191,15 @@ export function mirrorHatchSide(beamIn: Vec2, rotation = 0): 1 | -1 {
   const local = rotateBy(beamIn, -rotation);
   return dot(local, unitAt(45)) > 0 ? 1 : -1;
 }
+
+/**
+ * Whether this is a component type the app still knows about.
+ *
+ * Keyed off the geometry table, which every component needs an entry in, so a type that
+ * was removed from the app (the `optomechanics` mounts, the vacuum chamber) or was never
+ * real answers `false`. Used when loading a saved layout, to drop nodes the app can no
+ * longer draw or trace rather than rendering them as mystery boxes.
+ */
+export function isKnownComponentType(type: string): boolean {
+  return Object.prototype.hasOwnProperty.call(GEOMETRIES, type);
+}

@@ -36,10 +36,15 @@ export const Toolbar: React.FC = () => {
       if (!file) return;
       const text = await file.text();
       try {
-        const layout = layoutFromJSON(text);
-        loadLayout(layout as Parameters<typeof loadLayout>[0]);
-      } catch {
-        alert('Invalid layout file.');
+        const { nodes, edges, notes } = layoutFromJSON(text);
+        loadLayout({ nodes, edges });
+        // Every note means the file and what is now on screen differ — a migrated field
+        // or a component left out — so say so rather than letting it pass silently.
+        if (notes.length > 0) {
+          alert(`Layout loaded, with changes:\n\n• ${notes.join('\n\n• ')}`);
+        }
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'That file could not be read.');
       }
     };
     input.click();
