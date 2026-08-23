@@ -391,7 +391,9 @@ history and selection. `workspaceStore` is the single app-wide store, holding th
 open documents, which one is active, and the preferences that belong to the window rather
 than to a bench (`theme`, `activeView`, `showBeamLabels`, `labelScale`).
 
-Components never import a document store. They call `useLayout(selector)` from
+`DocumentTabs` renders the open documents; `App` provides the active one's store and keys
+the panel subtree by document id, so switching tabs mounts a clean canvas. Components never
+import a document store. They call `useLayout(selector)` from
 `layoutContext.ts`, which reads whichever instance the surrounding
 `LayoutContext.Provider` supplies — so switching documents is a change of provider value,
 and no component knows there is more than one. `useLayoutApi()` is the escape hatch for a
@@ -481,6 +483,52 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-22 — document tabs (phase 2)
+
+Several layouts open at once, one tab each. `DocumentTabs` sits between the title bar and
+the panels; the Editor/Diagram pair above it is a *view* of whichever document is active,
+which is why that state is `activeView`.
+
+`workspaceStore` gained `openDocument` / `closeDocument` / `setActiveDoc` /
+`renameDocument`. Two invariants are worth stating, both tested:
+
+- **The workspace is never empty.** Closing the last document replaces it with a fresh
+  blank one, so there is always somewhere to draw rather than an empty shell.
+- **Closing the active tab falls to its right-hand neighbour**, or the new last document —
+  what every editor does — and closing an inactive tab leaves the active one alone.
+  `setActiveDoc` ignores an id that is not open, so a stale id can never blank the editor.
+
+**Viewport is now per document** (`viewport` on the document store, set from `onMoveEnd`).
+This was listed as phase 4 but phase 1 made it mandatory: tabs unmount the canvas, and
+`fitView` was unconditional, so every switch would have re-framed the layout. A document is
+framed once, when it is first opened, and returns to wherever you left it after that.
+
+**A tab takes its file's name** on load, so a row of tabs is readable rather than five
+`Untitled`s. `useDocumentName` is the one place document state and workspace state meet.
+
+**Closing asks before dropping a bench with anything on it.** That is a stand-in for the
+real thing: a layout lives only in memory, and phase 3 will track a dirty flag against a
+file so a *saved* document closes without a word, while an unsaved one says what is at
+stake. Right now it counts components.
+
+**Shortcuts are Alt-based** — Alt+T new, Alt+W close, Alt+1…9 switch — because the browser
+owns Ctrl+T and Ctrl+W and will not give them up, and Alt combinations do not collide with
+the canvas's own Delete/Shift handling. Ignored while a field has focus.
+
+Verified in the running app with two documents: `D1_Layout.json` loaded into the first (41
+nodes, tab renamed), a laser dropped into a second (1 node), and switching back and forth
+keeps each layout intact. Zooming the second document to scale 2, visiting the first (which
+sits at 0.5), and returning restores scale 2 exactly. The close guard asks with the
+component count, declining keeps the tab, accepting closes it, and an empty document closes
+silently. Alt+T and Alt+1 behave. No console errors beyond this pane's standing refusal to
+register a service worker.
+
+21 tests added (`src/store/__tests__/workspace.test.ts` — the first store tests): opening
+and identity, layouts/undo/selection/viewport isolated between documents, each document
+tracing independently rather than sharing the memo, every closing rule including the
+never-empty invariant, switching and renaming, and preferences surviving a document switch
+while being absent from the document store entirely. **391 tests total.**
 
 ### 2026-08-22 — one store per document (tabs, phase 1)
 

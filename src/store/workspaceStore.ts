@@ -61,6 +61,18 @@ interface WorkspaceStore {
   setActiveView: (view: 'editor' | 'diagram') => void;
   toggleBeamLabels: () => void;
   setLabelScale: (scale: number) => void;
+
+  // ── Documents ─────────────────────────────────────────────────────────────
+  /** Add a document and show it. With no argument, an empty `Untitled`. */
+  openDocument: (doc?: OpenDocument) => string;
+  /**
+   * Close a document. Never leaves the workspace empty — closing the last one replaces it
+   * with a fresh blank document, so there is always somewhere to draw.
+   */
+  closeDocument: (id: string) => void;
+  setActiveDoc: (id: string) => void;
+  /** Rename a tab — what Save/Load use to show which file a document came from. */
+  renameDocument: (id: string, name: string) => void;
 }
 
 const first = newDocument();
@@ -79,6 +91,32 @@ export const useWorkspace = create<WorkspaceStore>((set) => ({
   toggleBeamLabels: () => set(s => ({ showBeamLabels: !s.showBeamLabels })),
   setLabelScale: (scale) =>
     set({ labelScale: Math.min(LABEL_SCALE_MAX, Math.max(LABEL_SCALE_MIN, scale)) }),
+
+  openDocument: (doc = newDocument()) => {
+    set(s => ({ documents: [...s.documents, doc], activeDocId: doc.id }));
+    return doc.id;
+  },
+
+  closeDocument: (id) => set(s => {
+    const remaining = s.documents.filter(d => d.id !== id);
+    if (remaining.length === 0) {
+      // Keep exactly one document alive rather than rendering an empty shell.
+      const fresh = newDocument();
+      return { documents: [fresh], activeDocId: fresh.id };
+    }
+    if (id !== s.activeDocId) return { documents: remaining, activeDocId: s.activeDocId };
+    // Closing the tab you were on: fall to its right-hand neighbour, or the new last one,
+    // which is what every editor does.
+    const wasAt = s.documents.findIndex(d => d.id === id);
+    const next = remaining[Math.min(wasAt, remaining.length - 1)];
+    return { documents: remaining, activeDocId: next.id };
+  }),
+
+  setActiveDoc: (id) => set(s => (s.documents.some(d => d.id === id) ? { activeDocId: id } : {})),
+
+  renameDocument: (id, name) => set(s => ({
+    documents: s.documents.map(d => (d.id === id ? { ...d, name } : d)),
+  })),
 }));
 
 /**

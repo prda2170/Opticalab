@@ -54,6 +54,10 @@ export const EditorCanvas: React.FC = () => {
 
   const canvasVersion   = useLayout(s => s.canvasVersion);
   const theme           = useWorkspace(s => s.theme);
+  // Where this document was last looked at. Switching tabs unmounts the canvas, so
+  // without this every switch would re-frame the layout from scratch.
+  const savedViewport   = useLayout(s => s.viewport);
+  const setViewport     = useLayout(s => s.setViewport);
   const setSelectedNode = useLayout(s => s.setSelectedNode);
   const syncFromCanvas  = useLayout(s => s.syncFromCanvas);
   const saveSnapshot    = useLayout(s => s.saveSnapshot);
@@ -281,7 +285,11 @@ export const EditorCanvas: React.FC = () => {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onPaneClick={() => setSelectedNode(null)}
-        fitView
+        onMoveEnd={(_, viewport) => setViewport(viewport)}
+        // Frame the layout only the first time a document is opened; after that, come back
+        // to wherever the user left it.
+        defaultViewport={savedViewport ?? undefined}
+        fitView={savedViewport === null}
         fitViewOptions={{ padding: 0.2 }}
         defaultEdgeOptions={{ type: 'beam' }}
         deleteKeyCode="Delete"

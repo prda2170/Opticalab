@@ -30,6 +30,8 @@ It runs in a browser and installs as a desktop app, offline, with no setup — s
   own path.
 - **Angles on a lattice.** Components sit on 15° steps, mirror surfaces on 7.5° (reflection
   doubles the surface angle, so the finer grain is what makes every 15° beam reachable).
+- **Several layouts at once.** One tab per open document, each with its own undo history,
+  selection and viewport. Alt+T opens one, Alt+1…9 switches, Alt+W closes.
 - **Two views of one layout.** An editor canvas for building, and a clean read-only diagram
   for figures — exportable as SVG or PNG, with components as native SVG so it opens in
   Illustrator or Inkscape.
@@ -195,9 +197,9 @@ behind each design decision, gotchas that have bitten before, and a change log.
 npm test
 ```
 
-370 tests, all in `src/physics/__tests__/`, covering the tracer, the physics table,
+391 tests, in `src/physics/__tests__/` and `src/store/__tests__/`, covering the tracer, the physics table,
 Gaussian propagation, polarisation, AOM orders and double passes, the angle lattice, face
-trimming, detectors, and layout-file loading and migration. They are plain functions — no DOM, no React —
+trimming, detectors, layout-file loading and migration, and the workspace's document rules. They are plain functions — no DOM, no React —
 which is why they run in about two seconds.
 
 `npm run lint` currently reports 7 pre-existing errors in `Toolbar.tsx` and `NodeIcons.tsx`

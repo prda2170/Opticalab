@@ -2,6 +2,7 @@
 import React from 'react';
 import { useLayout } from '../../store/layoutContext';
 import { useWorkspace, LABEL_SCALE_MIN, LABEL_SCALE_MAX } from '../../store/workspaceStore';
+import { useDocumentName } from '../../store/useDocumentName';
 import { layoutToJSON, layoutFromJSON, saveTextAs } from '../../utils/export';
 
 export const Toolbar: React.FC = () => {
@@ -17,6 +18,7 @@ export const Toolbar: React.FC = () => {
   const toggleBeamLabels = useWorkspace(s => s.toggleBeamLabels);
   const labelScale       = useWorkspace(s => s.labelScale);
   const setLabelScale    = useWorkspace(s => s.setLabelScale);
+  const rename           = useDocumentName();
 
   const handleSave = async () => {
     const { nodes, edges } = getLayout();
@@ -39,6 +41,8 @@ export const Toolbar: React.FC = () => {
       try {
         const { nodes, edges, notes } = layoutFromJSON(text);
         loadLayout({ nodes, edges });
+        // The tab takes the file's name, so a row of tabs is readable.
+        rename(file.name.replace(/\.json$/i, ''));
         // Every note means the file and what is now on screen differ — a migrated field
         // or a component left out — so say so rather than letting it pass silently.
         if (notes.length > 0) {

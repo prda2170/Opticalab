@@ -55,6 +55,14 @@ export interface LayoutState {
   // UI state. Selection is per document: each tab remembers what was selected in it.
   selectedNodeId: string | null;
 
+  /**
+   * Where this document's canvas is scrolled and zoomed to, or null before it has been
+   * looked at. Per document, and load-bearing: switching tabs unmounts the canvas, so
+   * without this every switch would re-frame the layout with `fitView`. Session state, not
+   * layout data — deliberately not part of `getLayout()`.
+   */
+  viewport: { x: number; y: number; zoom: number } | null;
+
   // Version counter: increment to tell EditorCanvas to reload nodes/edges from store
   canvasVersion: number;
 
@@ -76,6 +84,7 @@ export interface LayoutState {
   redo: () => void;
 
   setSelectedNode: (id: string | null) => void;
+  setViewport: (viewport: { x: number; y: number; zoom: number }) => void;
 
   // Persistence
   loadLayout: (data: { nodes: Node<OpticalNodeData>[]; edges: Edge<BeamEdgeData>[] }) => void;
@@ -129,6 +138,7 @@ export function createLayoutStore(
       nodeArrivals: new Map(),
       warnings: new Map(),
       selectedNodeId: null,
+      viewport: null,
       canvasVersion: 0,
       history: [],
       future: [],
@@ -187,6 +197,7 @@ export function createLayoutStore(
       },
 
       setSelectedNode: (id) => set({ selectedNodeId: id }),
+      setViewport: (viewport) => set({ viewport }),
 
       loadLayout: (data) => {
         set((state) => ({

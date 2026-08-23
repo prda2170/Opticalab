@@ -4,6 +4,7 @@ import { useWorkspace, activeDocument } from './store/workspaceStore';
 import { EditorPanel } from './components/Editor/EditorPanel';
 import { DiagramPanel } from './components/Diagram/DiagramPanel';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { DocumentTabs } from './components/DocumentTabs';
 
 const App: React.FC = () => {
   const activeView = useWorkspace(s => s.activeView);
@@ -54,6 +55,10 @@ const App: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Open layouts. One tab per document; the Editor/Diagram pair above is a view of
+          whichever of these is active. */}
+      <DocumentTabs />
 
       {/* Main content. Keyed by document, so switching tabs mounts a clean canvas rather
           than trying to reuse one: xyflow measures nodes with a ResizeObserver, and a
