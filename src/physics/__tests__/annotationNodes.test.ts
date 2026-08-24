@@ -7,6 +7,9 @@ import { sizeOf, getNodeGeometry, isKnownComponentType } from '../../utils/nodeG
 import { layoutToJSON, layoutFromJSON, LAYOUT_VERSION, layoutFingerprint } from '../../utils/export';
 import { parseRich, richPlain, SYMBOLS } from '../../utils/richText';
 import { withAlpha } from '../../utils/annotationStyle';
+import {
+  stackLayerOf, stackOrderOf, stackZIndex, annotationsInLayer, STACK_BASE,
+} from '../../utils/stacking';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -191,5 +194,82 @@ describe('withAlpha', () => {
   it('clamps, and passes anything unparseable through', () => {
     expect(withAlpha('#000000', 5)).toBe('rgba(0, 0, 0, 1)');
     expect(withAlpha('currentColor', 0.5)).toBe('currentColor');
+  });
+});
+
+// ── Stacking ──────────────────────────────────────────────────────────────────
+
+describe('stacking', () => {
+  it('defaults by type: a wash goes behind, a caption in front', () => {
+    // Neither field is set on an existing layout, so the default has to be the useful one.
+    expect(stackLayerOf(region().data)).toBe('behind');
+    expect(stackLayerOf(note().data)).toBe('front');
+    expect(stackOrderOf(region().data)).toBe(0);
+  });
+
+  it('takes an explicit layer over the default', () => {
+    expect(stackLayerOf(region({ layer: 'front' }).data)).toBe('front');
+    expect(stackLayerOf(note({ layer: 'behind' }).data)).toBe('behind');
+  });
+
+  it('puts a behind-layer annotation under the optics and a front one over the beams', () => {
+    // The beam edge layer sits at CSS z-index 10 and the optics at 0, so these two bases are
+    // what "behind the bench" and "in front of everything" actually mean.
+    expect(stackZIndex(region())!).toBeLessThan(0);
+    expect(stackZIndex(note())!).toBeGreaterThan(10);
+    expect(stackZIndex(region())).toBe(STACK_BASE.behind);
+    expect(stackZIndex(note())).toBe(STACK_BASE.front);
+  });
+
+  it('moves within a layer without crossing into the other', () => {
+    // Forward/back is ±1, and no realistic number of nudges escapes its layer.
+    const raised = stackZIndex(region({ zOrder: 40 }))!;
+    const lowered = stackZIndex(note({ zOrder: -40 }))!;
+    expect(raised).toBeLessThan(0);
+    expect(lowered).toBeGreaterThan(10);
+    expect(stackZIndex(region({ zOrder: 3 }))!).toBeGreaterThan(stackZIndex(region({ zOrder: 1 }))!);
+  });
+
+  it('leaves optics where xyflow puts them', () => {
+    // Moving them would change how every existing layout draws.
+    expect(stackZIndex(laser())).toBeUndefined();
+  });
+
+  it('ignores a nonsense order rather than dropping the node out of its layer', () => {
+    expect(stackOrderOf({ ...region().data, zOrder: NaN } as OpticalNodeData)).toBe(0);
+    expect(stackOrderOf({ ...region().data, zOrder: 'front' } as unknown as OpticalNodeData)).toBe(0);
+  });
+
+  it('paints a layer furthest-first, and keeps optics out of it', () => {
+    const nodes = [
+      laser(),
+      { ...region(), id: 'A', data: { ...region().data, zOrder: 2 } },
+      { ...region(), id: 'B', data: { ...region().data, zOrder: -1 } },
+      { ...note(), id: 'C' },
+    ] as Node<OpticalNodeData>[];
+    expect(annotationsInLayer(nodes, 'behind').map(n => n.id)).toEqual(['B', 'A']);
+    expect(annotationsInLayer(nodes, 'front').map(n => n.id)).toEqual(['C']);
+  });
+
+  it('is stable for equal orders, so a figure does not shuffle between renders', () => {
+    const nodes = [
+      { ...region(), id: 'first' },
+      { ...region(), id: 'second' },
+      { ...region(), id: 'third' },
+    ] as Node<OpticalNodeData>[];
+    expect(annotationsInLayer(nodes, 'behind').map(n => n.id)).toEqual(['first', 'second', 'third']);
+    expect(annotationsInLayer(nodes, 'behind')).toEqual(annotationsInLayer(nodes, 'behind'));
+  });
+
+  it('survives a save, so a figure reopens stacked as it was left', () => {
+    const stacked = region({ layer: 'front', zOrder: 3 });
+    const back = layoutFromJSON(layoutToJSON([stacked], []));
+    expect(stackLayerOf(back.nodes[0].data)).toBe('front');
+    expect(stackOrderOf(back.nodes[0].data)).toBe(3);
+  });
+
+  it('counts as unsaved work when it changes', () => {
+    expect(layoutFingerprint([region({ zOrder: 1 })], []))
+      .not.toBe(layoutFingerprint([region({ zOrder: 2 })], []));
   });
 });

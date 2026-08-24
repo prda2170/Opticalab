@@ -419,6 +419,10 @@ export interface RegionData extends BaseNodeData {
   fillOpacity: number;
   /** Drawn inside the top-left corner, where it cannot cover the optics. */
   caption?: string;
+  /** Behind the optics (default for a region) or in front of everything. */
+  layer?: 'behind' | 'front';
+  /** Order within the layer, for annotations that overlap each other. */
+  zOrder?: number;
 }
 
 /**
@@ -436,6 +440,10 @@ export interface NoteData extends BaseNodeData {
   align: 'left' | 'center';
   /** Wrap width in px. The note is as tall as its content. */
   w: number;
+  /** In front of everything (default for a note) or behind the optics. */
+  layer?: 'behind' | 'front';
+  /** Order within the layer, for annotations that overlap each other. */
+  zOrder?: number;
 }
 
 // ─── Union type ───────────────────────────────────────────────────────────────

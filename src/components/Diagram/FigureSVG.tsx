@@ -36,6 +36,7 @@ import {
 } from '../../utils/canvasStyle';
 import { REGION_STYLE, NOTE_STYLE, withAlpha } from '../../utils/annotationStyle';
 import { parseRich, SCRIPT_SCALE, SCRIPT_RISE } from '../../utils/richText';
+import { annotationsInLayer } from '../../utils/stacking';
 
 /** Padding around the layout, px. */
 const FIGURE_PAD = 60;
@@ -233,6 +234,11 @@ const Note: React.FC<{ node: Node<OpticalNodeData> }> = ({ node }) => {
   );
 };
 
+/** Either kind of annotation, so both layers can render whatever is in them. */
+const Annotation: React.FC<{ node: Node<OpticalNodeData> }> = ({ node }) => (
+  node.type === 'note' ? <Note node={node} /> : <Region node={node} />
+);
+
 /** One component: its glyph, an instrument's housing, and its name. */
 const Component: React.FC<{
   node: Node<OpticalNodeData>;
@@ -411,9 +417,9 @@ export const FigureSVG = React.forwardRef<SVGSVGElement>((_props, ref) => {
       <rect x={box.x} y={box.y} width={box.w} height={box.h} fill={bg} />
       <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="url(#fig-grid)" />
 
-      {/* Regions first: a wash behind the bench, exactly as the canvas stacks them. */}
-      {nodes.filter(n => n.type === 'region').map(node => (
-        <Region key={node.id} node={node as Node<OpticalNodeData>} />
+      {/* Annotations behind the bench, in the order the canvas stacks them. */}
+      {annotationsInLayer(nodes as Node<OpticalNodeData>[], 'behind').map(node => (
+        <Annotation key={node.id} node={node} />
       ))}
 
       {/* Components under the beams, as on the canvas, where auto-edges are raised. */}
@@ -435,9 +441,9 @@ export const FigureSVG = React.forwardRef<SVGSVGElement>((_props, ref) => {
         <BeamLabel key={`lbl-${seg.id}`} seg={seg} />
       ))}
 
-      {/* Notes last, so text stays readable over a beam — the canvas raises them too. */}
-      {nodes.filter(n => n.type === 'note').map(node => (
-        <Note key={node.id} node={node as Node<OpticalNodeData>} />
+      {/* Annotations in front, last of all: over the beams, where a caption is readable. */}
+      {annotationsInLayer(nodes as Node<OpticalNodeData>[], 'front').map(node => (
+        <Annotation key={node.id} node={node} />
       ))}
     </svg>
   );

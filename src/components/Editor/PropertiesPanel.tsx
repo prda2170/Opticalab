@@ -11,6 +11,7 @@ import { detectorVolts, formatVoltage, incidentPower, detectorBeat } from '../..
 import { getNodeIcon } from '../Nodes/NodeIcons';
 import { ANNOTATION_COLOURS } from '../../utils/annotationStyle';
 import { ANNOTATION_NODE_TYPES } from '../../types/components';
+import { stackLayerOf, stackOrderOf, type StackLayer } from '../../utils/stacking';
 import { angleStepFor, SURFACE_AT_45 } from '../../utils/nodeGeometry';
 import { norm360, snapAngle } from '../../physics/geometry';
 
@@ -553,6 +554,7 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
       </Row>
       <Row label="Width" unit="px"><Num value={Math.round(data.w)} onChange={v => u({ w: v })} min={48} step={10} /></Row>
       <Row label="Height" unit="px"><Num value={Math.round(data.h)} onChange={v => u({ h: v })} min={48} step={10} /></Row>
+      <StackControls layer={stackLayerOf(data)} order={stackOrderOf(data)} onChange={u} />
       <Hint>
         Not an optic — a wash behind the bench for saying which part of it a caption is
         about. Drag it by its border so the components inside stay clickable, and resize it
@@ -578,8 +580,9 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
         </Sel>
       </Row>
       <Row label="Wrap width" unit="px"><Num value={Math.round(data.w)} onChange={v => u({ w: v })} min={40} step={10} /></Row>
+      <StackControls layer={stackLayerOf(data)} order={stackOrderOf(data)} onChange={u} />
       <Hint>
-        Takes a small markup, not LaTeX: {'\\lambda'}, {'\\Delta'}, {'\\times'} and the rest
+        Double-click a note on the canvas to edit it there. Takes a small markup, not LaTeX: {'\\lambda'}, {'\\Delta'}, {'\\times'} and the rest
         of the Greek and symbol names, plus {'^{...}'} and {'_{...}'} for scripts. It renders to
         plain characters, which is what lets the figure export as vector text — a real TeX
         engine could not.
@@ -588,6 +591,45 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
     default: return <Hint>No configurable properties.</Hint>;
   }
 }
+
+/**
+ * Which side of the bench an annotation is on, and its order among the others there.
+ *
+ * Two controls rather than a raw number: "behind or in front" is the choice that matters
+ * (a wash goes under the optics, a caption goes over the beams), and within a layer all
+ * anyone wants is to nudge one thing past another.
+ */
+const StackControls: React.FC<{
+  layer: StackLayer;
+  order: number;
+  onChange: (patch: { layer?: StackLayer; zOrder?: number }) => void;
+}> = ({ layer, order, onChange }) => (
+  <>
+    <Row label="Layer">
+      <Sel value={layer} onChange={e => onChange({ layer: e.target.value as StackLayer })}>
+        <option value="behind">Behind optics</option>
+        <option value="front">In front</option>
+      </Sel>
+    </Row>
+    <Row label="Stack">
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onChange({ zOrder: order - 1 })}
+          title="Send back (behind other annotations in this layer)"
+          className="px-1.5 py-0.5 text-xs rounded"
+          style={{ background: '#1e2030', color: '#e2e8f0' }}
+        >↓</button>
+        <button
+          onClick={() => onChange({ zOrder: order + 1 })}
+          title="Bring forward (in front of other annotations in this layer)"
+          className="px-1.5 py-0.5 text-xs rounded"
+          style={{ background: '#1e2030', color: '#e2e8f0' }}
+        >↑</button>
+        <span className="text-xs" style={{ color: '#94a3b8' }}>{order}</span>
+      </div>
+    </Row>
+  </>
+);
 
 /** Colour picker for annotations: the fixed palette, because a figure wants few colours. */
 const Swatches: React.FC<{ value: string; onChange: (c: string) => void }> = ({ value, onChange }) => (

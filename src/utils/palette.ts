@@ -263,7 +263,9 @@ export const PALETTE: PaletteEntry[] = [
     nodeType: 'note',
     defaultData: {
       name: 'Note', category: 'utility', type: 'note',
-      text: 'Note', fontSize: 12, colour: '#3b82f6', align: 'left', w: 180,
+      // Empty on purpose: an empty note opens straight into inline editing, and shows a
+      // "double-click to edit" placeholder until it has something to say.
+      text: '', fontSize: 12, colour: '#3b82f6', align: 'left', w: 180,
     },
   },
 ];

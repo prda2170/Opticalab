@@ -140,6 +140,11 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   Segment coordinates stay physically true — `lengthMm`, waist positions and hit
   points are unaffected. **Renderers must draw via `drawnEndpoints(seg)`**, never
   the raw coordinates, or the two views will disagree.
+- **Stacking is one model, read by both renderers** (`utils/stacking.ts`): a `layer`
+  (`'behind'` the optics or `'front'` of everything) and a `zOrder` within it. The canvas turns
+  that into an xyflow `zIndex`; the export sorts its paint order by it. Optics deliberately get
+  `undefined` — they have always been at xyflow's default and moving them would change how
+  every existing layout draws.
 - **Annotations are nodes.** Regions and text notes are xyflow nodes of type `region`/`note`,
   listed in `NON_OPTICAL_NODE_TYPES` and filtered out of the trace by `autoRoute` itself. That
   is not a shortcut — it is what buys drag, resize (`NodeResizer`), selection, delete, undo,
@@ -506,6 +511,46 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — notes edit in place, and annotations stack
+
+**Double-click a note to edit it on the canvas.** The textarea shows the *raw* markup — type
+`\lambda`, see `\lambda`, get λ when you commit — and a note dropped from the toolbar arrives
+empty and already editing, so the gesture is "add a note, type it" rather than "add a note,
+then find the text field". Commit on Ctrl/Cmd+Enter or by clicking away; Escape cancels; Enter
+is a newline, because a caption is usually two or three lines. One undo step per editing
+session, taken when editing starts, rather than one per keystroke.
+
+Handing the keyboard to an element inside an xyflow node needed four specific things, each of
+which was a bug first:
+
+- `nodrag nowheel` on the textarea, or the canvas pans while you select text and zooms while
+  you scroll.
+- `stopPropagation` on keydown: xyflow listens on the document for Delete and Backspace, so
+  editing a note deleted the note.
+- **A capture-phase `pointerdown` listener, not just `onBlur`.** xyflow calls
+  `preventDefault` on pane mousedown, which stops the textarea ever losing focus — click the
+  canvas and the note stayed stuck in edit mode. The listener runs before that and commits.
+- **Focus on the next frame.** xyflow focuses the node element itself when it becomes selected
+  (nodes carry `tabindex` for keyboard nav), which took the caret straight back out. A
+  `requestAnimationFrame` puts it back after.
+
+**Annotations stack, in two axes.** `utils/stacking.ts` gives each one a `layer` — behind the
+optics (a wash) or in front of everything (a caption) — and a `zOrder` within that layer, with
+↑/↓ in the properties panel. Both default by type, so every layout that already exists has the
+answer it had before: regions behind, notes in front. The bases are ±200 around the beam edge
+layer's CSS `z-index: 10`, which leaves room for as much nudging as anyone will do without
+crossing layers, and the order survives a layer switch.
+
+The export sorts by the same functions, so paint order matches the canvas: behind-layer
+annotations, optics, beams, front-layer annotations. Ties break on array position, which is
+stable — a figure does not shuffle between renders.
+
+10 tests added to `annotationNodes.test.ts`: defaults by type, explicit layer winning, a
+behind annotation below the optics and a front one above the beams, nudging staying inside its
+layer, optics untouched, a nonsense `zOrder` ignored, paint order furthest-first with optics
+excluded, stability for equal orders, surviving a save, and counting as unsaved work.
+**525 tests total.**
 
 ### 2026-08-23 — highlight regions and text notes
 
