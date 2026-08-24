@@ -102,6 +102,26 @@ deployed, a bar appears — *Reload* now, or *Later* and it applies next launch.
 The app is entirely client-side — no server, no database, nothing native — so the built
 `dist/` is a self-contained static site.
 
+### First deploy
+
+The repo has no remote until you give it one. Create an empty repository on GitHub — **private
+is the safer default**, since `Layouts/` holds real bench layouts — then:
+
+```bash
+git remote add origin git@github.com:<you>/opticalab.git
+git push -u origin master
+```
+
+Then in Netlify: *Add new site → Import an existing project → GitHub → this repo*. Take every
+default and press deploy; `netlify.toml` supplies the build command, the publish directory, the
+Node version, the SPA redirect and the cache headers, so there is nothing to type. The first
+build takes a couple of minutes.
+
+Once it is up, install the PWA **from the Netlify URL** rather than from `localhost`, and
+uninstall any copy installed from a local preview: an installed app is pinned to the origin it
+came from, so a `localhost` install can only ever update while a local server happens to be
+running. After that, every `git push` deploys, and the app offers the update on next launch.
+
 **Netlify** is what `netlify.toml` is set up for: point Netlify at the repo and it needs
 nothing typed into the dashboard — build command, publish directory, Node version, the SPA
 redirect and cache headers are all in the file. Any host works, but two things matter:

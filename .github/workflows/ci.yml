@@ -30,8 +30,9 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Non-blocking: there are 7 known pre-existing errors in Toolbar.tsx and
-      # NodeIcons.tsx (inline components, mixed exports). Fix those and drop this line.
+      # Non-blocking: one known pre-existing error remains, in NodeIcons.tsx (a file that
+      # exports both components and helpers, which react-refresh dislikes). Fix that and
+      # drop this line so lint failures break the build.
       - name: Lint
         run: npm run lint
         continue-on-error: true
