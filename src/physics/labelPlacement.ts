@@ -23,6 +23,7 @@ import {
 } from './geometry';
 import { getNodeGeometry, drawnHalfExtents } from '../utils/nodeGeometry';
 import { LABEL_BASE_PX } from '../utils/labelLayout';
+import { annotationBox } from '../utils/annotations';
 
 /** How far a label wants to stay from any beam, in px, before it counts as clear. */
 export const LABEL_CLEARANCE_PX = 7;
@@ -121,6 +122,77 @@ export function candidateSides(axis: Vec2): Vec2[] {
   ];
 }
 
+/**
+ * An axis-aligned box that a label has to stay off.
+ *
+ * `owner` is the node it belongs to, where it has one: a label ignores its own component's
+ * body (it is measured off that body to begin with) but not its own annotations.
+ */
+interface Obstacle {
+  centre: Pt;
+  halfWidth: number;
+  halfHeight: number;
+  /** The node this box belongs to, if any. */
+  owner?: string;
+  /** Node id this box does not apply to — a component's own body. */
+  skipFor?: string;
+}
+
+/**
+ * The annotation stack above each component, as a box.
+ *
+ * The figure prints λ, f, θ, R… above every component that has them, and a name landing on a
+ * neighbour's "R=99.5%" reads no better than one landing on a beam. Reserved for every node,
+ * including the one being labelled — its own stack is directly above it, which is precisely
+ * the collision "straight up" used to make.
+ *
+ * The editor canvas does not draw annotations, and still reserves the space. That is
+ * deliberate: one placement for both views means a label never moves when you switch to the
+ * diagram or export a figure, and a little unused room on the canvas is the cheaper half of
+ * that trade.
+ */
+function annotationObstacles(nodes: Node<OpticalNodeData>[]): Obstacle[] {
+  const boxes: Obstacle[] = [];
+  for (const node of nodes) {
+    const box = annotationBox(node.data);
+    if (!box) continue;
+    const g = getNodeGeometry(node.data.type, node.data.rotation ?? 0);
+    boxes.push({
+      owner: node.id,
+      centre: {
+        x: node.position.x + g.width / 2,
+        y: node.position.y + g.height / 2 + box.dy,
+      },
+      halfWidth: box.halfWidth,
+      halfHeight: box.halfHeight,
+    });
+  }
+  return boxes;
+}
+
+/**
+ * The components themselves.
+ *
+ * A name on top of the neighbouring cube is no better than a name on top of that cube's
+ * "R=99.5%", and once the annotations were taken into account this was what was left. Its own
+ * component is excluded — clearing that is `labelDistance`'s job, and it does it more tightly
+ * than a bounding box could.
+ *
+ * The box is the *occupied* one, so a mirror at 45° reserves the square its turned artwork
+ * spans. Conservative by √2 along the diagonals, which is the right way to be wrong here.
+ */
+function bodyObstacles(nodes: Node<OpticalNodeData>[]): Obstacle[] {
+  return nodes.map(node => {
+    const g = getNodeGeometry(node.data.type, node.data.rotation ?? 0);
+    return {
+      owner: node.id,
+      centre: { x: node.position.x + g.width / 2, y: node.position.y + g.height / 2 },
+      halfWidth: g.width / 2,
+      halfHeight: g.height / 2,
+    };
+  });
+}
+
 /** The five points of a label box worth testing: its centre and its corners. */
 function boxProbes(centre: Pt, halfWidth: number, halfHeight: number): Pt[] {
   return [
@@ -132,12 +204,14 @@ function boxProbes(centre: Pt, halfWidth: number, halfHeight: number): Pt[] {
   ];
 }
 
-/** Closest approach between a label box and any beam, or Infinity if there are none. */
+/** Closest approach between a label box and any beam or obstacle; Infinity if there are none. */
 function clearanceFrom(
   centre: Pt,
   label: { halfWidth: number; halfHeight: number },
   segments: BeamSegment[],
-  placed: { centre: Pt; halfWidth: number; halfHeight: number }[],
+  obstacles: Obstacle[],
+  /** Node being labelled; its own body is not something to avoid. */
+  self?: string,
 ): number {
   let worst = Infinity;
   for (const probe of boxProbes(centre, label.halfWidth, label.halfHeight)) {
@@ -147,9 +221,11 @@ function clearanceFrom(
       worst = Math.min(worst, nearestOnSegment(probe, { x: x1, y: y1 }, { x: x2, y: y2 }).distance);
     }
   }
-  // Labels also avoid each other; two names on top of one another are as unreadable as a
-  // name on a beam. Boxes, not points, so wide labels repel properly.
-  for (const other of placed) {
+  // Boxes — labels already placed, and every component's annotation stack. Two names on top
+  // of one another are as unreadable as a name on a beam, and so is a name on a formula.
+  // Compared as boxes, not points, so wide text repels properly.
+  for (const other of obstacles) {
+    if (other.skipFor === self) continue;
     const gapX = Math.abs(centre.x - other.centre.x) - (label.halfWidth + other.halfWidth);
     const gapY = Math.abs(centre.y - other.centre.y) - (label.halfHeight + other.halfHeight);
     worst = Math.min(worst, Math.max(gapX, gapY));
@@ -158,7 +234,7 @@ function clearanceFrom(
 }
 
 /**
- * Choose a side for every label, avoiding the beams and each other.
+ * Choose a side for every label, avoiding the beams, the annotations and each other.
  *
  * Greedy in node order, which is stable because the node list is: the same layout always
  * places the same way, so labels do not shuffle between renders. A label takes the first
@@ -172,7 +248,12 @@ export function placeLabels(
   segments: BeamSegment[],
 ): Map<string, Vec2> {
   const sides = new Map<string, Vec2>();
-  const placed: { centre: Pt; halfWidth: number; halfHeight: number }[] = [];
+  // Seeded with everything already on the figure — the components and the formulas above
+  // them — then grown as labels are placed, so a name also avoids the names before it.
+  const obstacles: Obstacle[] = [
+    ...annotationObstacles(nodes),
+    ...bodyObstacles(nodes).map(b => ({ ...b, skipFor: b.owner })),
+  ];
 
   for (const node of nodes) {
     const text = labelTextFor(node);
@@ -194,14 +275,14 @@ export function placeLabels(
     for (const side of candidateSides(beamAxisOf(node))) {
       const dist = labelDistance(node.data.type, rotation, side, label);
       const at = { x: centre.x + side.dx * dist, y: centre.y + side.dy * dist };
-      const clearance = clearanceFrom(at, label, segments, placed);
+      const clearance = clearanceFrom(at, label, segments, obstacles, node.id);
       if (clearance >= LABEL_CLEARANCE_PX) { best = { side, centre: at, clearance }; break; }
       if (!best || clearance > best.clearance) best = { side, centre: at, clearance };
     }
 
     if (!best) continue;
     sides.set(node.id, best.side);
-    placed.push({ centre: best.centre, halfWidth: label.halfWidth, halfHeight: label.halfHeight });
+    obstacles.push({ centre: best.centre, halfWidth: label.halfWidth, halfHeight: label.halfHeight });
   }
 
   return sides;

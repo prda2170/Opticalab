@@ -20,7 +20,9 @@ import { makeSpread, DEFAULT_SPREAD, type SpreadTransform } from '../../physics/
 import { componentLanes } from '../../physics/lanes';
 import { probeBeam, probeLines } from '../../physics/probe';
 import { detectorSignalLabel, incidentPower } from '../../physics/detector';
-import { formatCurrent, formatSourcePower } from '../../utils/units';
+import {
+  getAnnotations, ANNOTATION_FONT_PX, ANNOTATION_ROW_PX, ANNOTATION_GAP_PX,
+} from '../../utils/annotations';
 
 import { labelLayout } from '../../utils/labelLayout';
 import { labelDistance, labelHalfExtents, DEFAULT_LABEL_SIDE } from '../../physics/labelPlacement';
@@ -29,65 +31,6 @@ import type { Node } from '@xyflow/react';
 // Per-component annotation toggle state
 type AnnotationToggles = Record<string, Record<string, boolean>>;
 
-function getAnnotations(data: OpticalNodeData): Record<string, string> {
-  const ann: Record<string, string> = {};
-  switch (data.type) {
-    case 'laser_source':
-      ann['λ'] = `${data.wavelength} nm`;
-      ann['P'] = formatSourcePower(data.outputPower);
-      ann['pol'] = data.polarization;
-      // Bookkeeping, so only shown when someone has bothered to record it.
-      if (data.current) ann['I'] = formatCurrent(data.current);
-      break;
-    case 'optical_amplifier':
-      ann['P'] = formatSourcePower(data.outputPower);
-      if (data.current) ann['I'] = formatCurrent(data.current);
-      break;
-    case 'fiber_amplifier':
-      // A source, so it gets source-style annotations: what colour, how much, how polarised.
-      ann['λ'] = `${data.wavelength} nm`;
-      ann['P'] = formatSourcePower(data.outputPower);
-      ann['pol'] = data.polarization;
-      if (data.current) ann['I'] = formatCurrent(data.current);
-      break;
-    case 'hwp': ann['θ'] = `${data.fastAxisAngle}°`; break;
-    case 'qwp': ann['θ'] = `${data.fastAxisAngle}°`; break;
-    case 'linear_polarizer': ann['θ'] = `${data.angle}°`; break;
-    case 'nd_filter': ann['OD'] = `${data.od}`; break;
-    case 'isolator': ann['T'] = `${data.transmission}%`; ann['iso'] = `${data.isolation} dB`; break;
-    case 'dielectric_mirror': ann['R'] = `${data.reflectivity}%`; break;
-    case 'retroreflector':
-      ann['R'] = `${data.reflectivity}%`;
-      if (data.focalLength) ann['f'] = `${data.focalLength} mm`;
-      break;
-    case 'npbs': ann['R:T'] = data.splitRatio; break;
-    case 'plano_convex':
-    case 'plano_concave': ann['f'] = `${data.focalLength} mm`; break;
-    case 'aom': ann['f'] = `${data.rfFrequency} MHz`; ann['η'] = `${data.diffractionEfficiency}%`; break;
-    case 'eom': ann['f'] = `${data.rfFrequency} MHz`; break;
-    case 'vapor_cell':
-      ann['X'] = data.species;
-      ann['L'] = `${data.length} mm`;
-      ann['T'] = `${data.temperature}°C`;
-      break;
-    case 'fiber_coupler': ann['η'] = `${data.couplingEfficiency}%`; ann['NA'] = `${data.inputNA}`; break;
-    case 'fiber_launcher':
-      // A launcher is a source, so it gets source-style annotations.
-      ann['λ'] = `${data.wavelength ?? 780} nm`;
-      ann['P'] = `${data.outputPower ?? 1} mW`;
-      if (data.focalLength) ann['f'] = `${data.focalLength} mm`;
-      break;
-    case 'fiber_cable': ann['L'] = `${data.length} m`; break;
-    case 'fabry_perot': ann['F'] = `${data.finesse}`; ann['FSR'] = `${data.fsr} MHz`; break;
-    case 'reference_cavity': ann['F'] = `${data.finesse}`; ann['δν'] = `${data.linewidth} kHz`; break;
-    case 'nonlinear_crystal':
-    case 'shg_crystal':
-    case 'sfg_crystal':
-      ann['η'] = `${data.conversionEfficiency}%`; ann['T'] = `${data.temperature}°C`; break;
-    default: break;
-  }
-  return ann;
-}
 
 /**
  * One beam segment, spread out but geometrically the same beam. Free beams (those that
@@ -337,13 +280,15 @@ const NodeSymbol: React.FC<{
         <g>
           {annKeys.map((key, idx) => {
             const active = toggles[key] !== false;
-            const gy = -hh - 8 - idx * 10;
+            // Same offsets `annotationBox` reserves, from the same constants, so the space
+            // labels keep clear of is exactly the space this text lands in.
+            const gy = -hh - ANNOTATION_GAP_PX - idx * ANNOTATION_ROW_PX;
             return (
               <text
                 key={key}
                 x={0} y={gy}
                 textAnchor="middle"
-                fontSize={7.5}
+                fontSize={ANNOTATION_FONT_PX}
                 fill={annColor}
                 fontFamily="monospace"
                 opacity={active ? 1 : 0.3}
@@ -357,7 +302,7 @@ const NodeSymbol: React.FC<{
           {/* Dashed connector line from top of node to lowest annotation */}
           <line
             x1={0} y1={-hh}
-            x2={0} y2={-hh - 5}
+            x2={0} y2={-hh - ANNOTATION_GAP_PX + 3}
             stroke={annColor} strokeWidth={0.5} strokeDasharray="2,2" opacity={0.35}
           />
         </g>

@@ -142,7 +142,8 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   the raw coordinates, or the two views will disagree.
 - **Where a label sits is geometry, not styling.** `placeLabels` (`physics/labelPlacement.ts`)
   runs after fanning and publishes `RouteResult.labelSides`: node id → the direction its name
-  should sit from its centre, chosen so the text clears every beam and every other label. Only
+  should sit from its centre, chosen so the text clears every beam, every component, every
+  annotation stack (`utils/annotations.ts`) and every label placed before it. Only
   the *direction* needs the beams; how far out is `labelDistance`, which both views call. A
   renderer that picked its own side would put the exported figure's labels somewhere other
   than the canvas's.
@@ -503,6 +504,51 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — labels also keep off the components and the formulas
+
+Beams were only one of the things a label could land on. On the D1 bench with all 41 names
+shown, the pass that avoided beams still put **13** labels on top of a neighbouring component
+and **3** on top of a neighbour's `R=99.5%` — the annotation stacks the figure prints above
+every optic. Both are now obstacles, so a label avoids four things: beams, bodies, annotation
+stacks, and the labels placed before it.
+
+| overlaps, 41 labels on D1 | always-below | avoiding beams only | now |
+|---|---|---|---|
+| on a beam | 14 | 0 | 0 |
+| on a component | 13 | 13 | 1 |
+| on an annotation | 3 | 3 | 0 |
+| on another label | 0 | 0 | 0 |
+
+The one that is left is a λ/2 in the tightest cluster on the bench, where no side clears and
+the pass takes the roomiest — it overlaps by a few px on the *canvas* and clears completely at
+the figure's default 140% spacing (checked: zero overlaps of any kind at 1.4).
+
+**`getAnnotations` moved out of the panel into `utils/annotations.ts`**, together with the
+geometry constants the rows are drawn from (`ANNOTATION_FONT_PX`, `_ROW_PX`, `_GAP_PX`) and a
+new `annotationBox(data)` giving the stack's box relative to the component's centre. Two
+callers on purpose: the diagram draws the rows, `labelPlacement` reserves the box. Deriving
+that box anywhere but from the same rows the renderer draws would let the two drift, which is
+how you get a label dodging empty space.
+
+**A component's own stack counts, its own body does not.** The stack sits directly above the
+icon, which is exactly the collision "straight up" used to make — the second-choice side for
+every horizontal beam. Its own body is excluded because `labelDistance` already clears it, and
+more tightly than a bounding box could. Bodies use the *occupied* box, so a mirror at 45°
+reserves the square its turned artwork spans: conservative by √2 on the diagonals, which is
+the right way to be wrong.
+
+**The canvas reserves annotation space it does not draw.** Annotations are a figure thing. The
+alternative was a per-view placement, and then a label would move when you switched to the
+Diagram tab or exported — so one placement wins, and the canvas keeps a little room free for
+text it never shows.
+
+11 tests added (`__tests__/annotations.test.ts`, plus three in `labelPlacement.test.ts`): the
+rows a component prints and their box (null when empty, sitting above the occupied box,
+growing upwards a row pitch at a time, as wide as its longest row, following the component as
+it turns), a label refusing to sit on its own `f=80 MHz`, a label taking the far side when a
+neighbour's three-row stack occupies the near one, and annotations counting even for a
+component whose name is hidden. **516 tests total.**
 
 ### 2026-08-23 — the figure gets out of its own way
 
