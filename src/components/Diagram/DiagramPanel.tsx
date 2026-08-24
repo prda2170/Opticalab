@@ -189,21 +189,31 @@ const NodeSymbol: React.FC<{
 
   return (
     <g transform={`translate(${cx}, ${cy})`}>
-      {/* Background — subtle for symbols, solid for boxes. Sized to the *artwork* and
-          turned with it, so it hugs the component at any angle instead of being an
-          axis-aligned box around it. */}
-      <rect
-        transform={rotation ? `rotate(${rotation})` : undefined}
-        x={-art.width / 2} y={-art.height / 2}
-        width={art.width} height={art.height}
-        rx={isSymbol ? 4 : 6}
-        fill={theme === 'dark' ? '#1e2030' : '#ffffff'}
-        stroke={catColor}
-        strokeWidth={isSymbol ? 1 : 1.5}
-        opacity={isSymbol ? 0.55 : 0.92}
-      />
-      {/* Category dot (top-right corner) */}
-      <circle cx={hw - 5} cy={-hh + 5} r={isSymbol ? 2.5 : 3.5} fill={catColor} />
+      {/* Background and border — instruments only.
+          A mirror, a cube, a waveplate, a fibre coupler: the glyph already says what the
+          component is, and a rounded rectangle around each one turns a bench into a row of
+          boxes. Instrument nodes keep theirs, because there the border *is* the device — an
+          acousto-optic cell without its housing is a stack of loose lines. The rect is sized
+          to the artwork and turned with it, so it hugs the component at any angle instead of
+          being an axis-aligned box around it.
+
+          The category dot goes with the box: it was pinned to the box's corner, and on its
+          own it reads as a stray mark. The glyph is drawn in the category colour anyway. */}
+      {!isSymbol && (
+        <>
+          <rect
+            transform={rotation ? `rotate(${rotation})` : undefined}
+            x={-art.width / 2} y={-art.height / 2}
+            width={art.width} height={art.height}
+            rx={6}
+            fill={theme === 'dark' ? '#1e2030' : '#ffffff'}
+            stroke={catColor}
+            strokeWidth={1.5}
+            opacity={0.92}
+          />
+          <circle cx={hw - 5} cy={-hh + 5} r={3.5} fill={catColor} />
+        </>
+      )}
 
       {/* Icon — nested <svg>, NOT <foreignObject>, so the diagram rasterises to
           PNG and opens in Illustrator/Inkscape. Rotation is about the node centre,

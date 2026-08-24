@@ -206,6 +206,10 @@ Three conventions are the figure's own, and differ from the canvas on purpose:
   figure. Waist markers keep their tick, without the number.
 - **Mirrors go unnamed** (`UNNAMED_IN_FIGURE`): a bench has a lot of mirrors and they are all
   called "M". The editor still labels them, since there a name is how you find a component.
+- **No box around a symbol.** Only instrument ("box") nodes get a background and border — for
+  them the border *is* the device housing. A mirror, cube, waveplate or coupler draws its glyph
+  bare, and the category dot goes with the box. The canvas keeps its boxes: there they are what
+  you click and drag.
 - **Spacing** (`physics/spread.ts`, `DEFAULT_SPREAD = 1.4`): every distance between
   components is multiplied, while the components keep their size, so names and beams have
   room. A display transform only — see the change log for what it must preserve.
@@ -504,6 +508,33 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — the figure drops the boxes around the optics
+
+**Symbol components draw bare in the diagram.** Every component used to sit in a rounded
+rectangle with a category-coloured border, which on a real bench renders a beam path as a row
+of identical boxes with something small inside each. A mirror is a hatched line at 45°, a cube
+is a square with a diagonal, a waveplate is a plate with "λ/2" on it — the glyph already says
+what the component is, and the box only competes with it.
+
+Instrument nodes (`symbolType: 'box'` — acousto-optics, EOM, SLM, camera, profiler, cavities,
+fibre cable) keep theirs, because there the border is the device: an acousto-optic cell without
+its housing is a stack of loose lines. That split lands exactly on the components asked for —
+mirrors, cubes, couplers, waveplates, lenses, detectors, sources are all symbol nodes.
+
+**The category dot went with the box.** It was pinned 5 px inside the box's top-right corner;
+without the box it reads as a stray mark next to the optic, and the glyph is drawn in the
+category colour anyway.
+
+Checked that no symbol glyph depended on the box to look closed: the laser and the amplifiers
+draw a full casing, the vapour cell draws its wedged glass body, and the rest (mirror, lens,
+waveplate, iris, isolator, coupler, photodiode) are line drawings that read as themselves. The
+white fill went too, so a beam that passes *behind* an optic is now visible through it —
+honest, and it can only happen for beams that don't interact with the component anyway.
+
+Nothing geometric changed: `drawnHalfExtents` still measures the glyph as drawn, so labels sit
+exactly where they did. **The editor canvas keeps its boxes** — there the box is what you click
+and drag, not decoration.
 
 ### 2026-08-23 — labels also keep off the components and the formulas
 
