@@ -3,7 +3,7 @@ import { LayoutContext } from './store/layoutContext';
 import { useWorkspace, activeDocument } from './store/workspaceStore';
 import { hydrateSession, startSessionPersistence } from './store/sessionSync';
 import { EditorPanel } from './components/Editor/EditorPanel';
-import { DiagramPanel } from './components/Diagram/DiagramPanel';
+import { FigurePanel } from './components/Diagram/FigurePanel';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { DocumentTabs } from './components/DocumentTabs';
 import { FileShortcuts } from './components/FileShortcuts';
@@ -90,7 +90,7 @@ const App: React.FC = () => {
               every time the view or the document changes. */}
           <FileShortcuts />
           <div key={doc.id} className="h-full">
-            {activeView === 'editor' ? <EditorPanel /> : <DiagramPanel />}
+            {activeView === 'editor' ? <EditorPanel /> : <FigurePanel />}
           </div>
         </LayoutContext.Provider>
       </div>

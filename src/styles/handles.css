@@ -13,3 +13,16 @@
 .react-flow__edges {
   z-index: 10 !important;
 }
+
+/* ── Figure mode ──────────────────────────────────────────────────────────────
+   The Diagram tab draws the same canvas as the editor, so that what you annotate is
+   what exports. What it does not draw is the machinery for editing optics: connection
+   handles, and the resize/selection affordances that belong to a component you can
+   move. Regions and notes keep theirs — they are what you are here to place. */
+.opticalab-figure .react-flow__handle {
+  display: none !important;
+}
+.opticalab-figure .react-flow__node-optical,
+.opticalab-figure .react-flow__node-power_probe {
+  cursor: default;
+}

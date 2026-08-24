@@ -1,7 +1,7 @@
 {
   "version": "1.1",
   "metadata": {
-    "created": "2026-08-23T09:24:53.060Z",
+    "created": "2026-08-24T00:41:19.231Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -178,7 +178,7 @@
           "dy": -1
         },
         "showLabel": true,
-        "rotation": 270
+        "rotation": 90
       }
     },
     {
@@ -377,8 +377,8 @@
       "id": "node_1787475966849_18",
       "type": "optical",
       "position": {
-        "x": 469.39829071337437,
-        "y": -13.855135045492005
+        "x": 481.39829071337437,
+        "y": -25.855135045492005
       },
       "data": {
         "name": "EOM",
@@ -392,7 +392,8 @@
           "dx": 0,
           "dy": -1
         },
-        "showLabel": true
+        "showLabel": true,
+        "rotation": 270
       }
     },
     {
@@ -637,7 +638,7 @@
           "dx": 0,
           "dy": -1
         },
-        "rotation": 270
+        "rotation": 90
       }
     },
     {
@@ -716,7 +717,8 @@
         "beamIncomingDir": {
           "dx": -1,
           "dy": 0
-        }
+        },
+        "rotation": 180
       }
     },
     {
@@ -755,7 +757,8 @@
         "beamIncomingDir": {
           "dx": -1,
           "dy": 0
-        }
+        },
+        "locked": false
       }
     }
   ],

@@ -7,7 +7,6 @@ import {
 import { autoRoute } from '../autoRoute';
 import { unitAt, angleOf, type Vec2 } from '../geometry';
 import { getNodeGeometry } from '../../utils/nodeGeometry';
-import { annotationBox } from '../../utils/annotations';
 import type { OpticalNodeData } from '../../types/components';
 import type { BeamSegment } from '../../types/beam';
 import { defaultBeam } from '../../types/beam';
@@ -150,76 +149,6 @@ describe('placeLabels', () => {
     const sides = placeLabels(nodes, [seg(100, 200, 400, 200)]);
     expect(sides.get('A')).toEqual(DEFAULT_LABEL_SIDE);
     expect(sides.get('B')!.dy).toBeLessThan(0);
-  });
-
-  it('does not sit on its own component annotations', () => {
-    // An instrument's artwork fills its box, so its name sits right where "f=80 MHz" is
-    // printed. With the beam side taken, the old pass went straight up — onto the formula.
-    // (A symbol node has slack between its glyph and its box, so the two never met there;
-    // it is the box nodes that collide.)
-    const nodes = [at('A1', 'aom', 200, 200, {
-      category: 'modulation', rfFrequency: 80, diffractionEfficiency: 80, order: 1,
-    })];
-    const label = labelHalfExtents('A1');
-    const down = labelDistance('aom', 0, DEFAULT_LABEL_SIDE, label);
-    const segments = [seg(100, 200, 300, 200), seg(100, 200 + down, 300, 200 + down)];
-
-    const box = annotationBox(nodes[0].data)!;
-    const stack = { x: 200, y: 200 + box.dy };
-    const gapTo = (side: { dx: number; dy: number }) => {
-      const d = labelDistance('aom', 0, side, label);
-      const at = { x: 200 + side.dx * d, y: 200 + side.dy * d };
-      const gapX = Math.abs(at.x - stack.x) - label.halfWidth - box.halfWidth;
-      const gapY = Math.abs(at.y - stack.y) - label.halfHeight - box.halfHeight;
-      return Math.max(gapX, gapY);
-    };
-
-    expect(gapTo({ dx: 0, dy: -1 })).toBeLessThan(0);          // straight up was the bug
-    // Beam below, formulas above: nothing on this fixture clears the full
-    // `LABEL_CLEARANCE_PX`, so the pass takes the roomiest side — which still means the text
-    // does not touch the formula.
-    expect(gapTo(sideOf(nodes, segments, 'A1')!)).toBeGreaterThan(0);
-  });
-
-  it('does not sit on a neighbour annotation stack either', () => {
-    // A vertical beam sends this label sideways, and the component it lands next to is
-    // printing three lines of its own. Position that neighbour so its stack is exactly
-    // where the label's first choice would go.
-    const label = labelHalfExtents('I1');
-    const leftDist = labelDistance('iris', 0, { dx: -1, dy: 0 }, label);
-    const spot = { x: 400 - leftDist, y: 300 };
-
-    const src = at('L1', 'laser_source', 0, 0, {
-      category: 'source', wavelength: 780, outputPower: 100, polarization: 'H',
-      showLabel: false,
-    });
-    const box = annotationBox(src.data)!;
-    const g = getNodeGeometry('laser_source');
-    const blocker = {
-      ...src,
-      position: { x: spot.x - g.width / 2, y: spot.y - box.dy - g.height / 2 },
-    };
-
-    const nodes = [
-      blocker,
-      at('I1', 'iris', 400, 300, {
-        category: 'conditioning', diameter: 10, rotation: 90,
-        beamIncomingDir: { dx: 0, dy: 1 },
-      }),
-    ];
-    const side = sideOf(nodes, [seg(400, 100, 400, 500)], 'I1')!;
-    expect(side).toEqual({ dx: 1, dy: 0 });
-  });
-
-  it('counts the annotations of components that show no name', () => {
-    // The blocker above is unlabelled: its formulas are on the figure even though its name
-    // is not, so they still have to be avoided.
-    const src = at('L1', 'laser_source', 200, 400, {
-      category: 'source', wavelength: 780, outputPower: 100, polarization: 'H',
-      showLabel: false,
-    });
-    expect(placeLabels([src], []).size).toBe(0);
-    expect(annotationBox(src.data)).not.toBeNull();
   });
 
   it('is stable: the same layout always places the same way', () => {

@@ -33,7 +33,7 @@ import { isOpticalNode } from '../../types/components';
 import { getNodeGeometry } from '../../utils/nodeGeometry';
 import { probeSnaps } from '../../physics/probe';
 import { autoRoute } from '../../physics/autoRoute';
-import { PX_PER_INCH } from '../../physics/scale';
+import { CANVAS_GRID, canvasBg, gridColour } from '../../utils/canvasStyle';
 
 type AppNode = Node<OpticalNodeData>;
 type AppEdge = Edge<BeamEdgeData>;
@@ -48,7 +48,15 @@ const edgeTypes: EdgeTypes = { beam: BeamEdge };
 let nodeIdCounter = 1;
 const newNodeId = () => `node_${Date.now()}_${nodeIdCounter++}`;
 
-export const EditorCanvas: React.FC = () => {
+/**
+ * How the canvas behaves. `edit` is the editor; `figure` is the Diagram tab, which draws the
+ * *same* canvas — that is the whole point of it — with the optics pinned and the interaction
+ * chrome out of the way, so what you see is what the figure exports.
+ */
+export type CanvasMode = 'edit' | 'figure';
+
+export const EditorCanvas: React.FC<{ mode?: CanvasMode }> = ({ mode = 'edit' }) => {
+  const isFigure = mode === 'figure';
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState<AppEdge>([]);
 
@@ -75,7 +83,8 @@ export const EditorCanvas: React.FC = () => {
     const state = layoutApi.getState();
     const loaded = (state.nodes as AppNode[]).map(n => ({
       ...n,
-      draggable: !(n.data as OpticalNodeData).locked,
+      // The figure pins the optics: it is a view of the bench, not a second place to move it.
+      draggable: !(n.data as OpticalNodeData).locked && !isFigure,
     }));
     // Preserve existing phantom endpoint nodes — they are not in Zustand but must
     // survive canvasVersion bumps (e.g. lock/unlock) so beams don't flash invisible.
@@ -91,7 +100,7 @@ export const EditorCanvas: React.FC = () => {
       const freshAuto = autoEdges.filter(e => !userIds.has(e.id));
       return [...userEdges, ...freshAuto];
     });
-  }, [canvasVersion, layoutApi, setNodes, setEdges]);
+  }, [canvasVersion, layoutApi, setNodes, setEdges, isFigure]);
 
   // ── Auto-routing ───────────────────────────────────────────────────────────
   // Runs after node changes only (not edge changes, to avoid feedback loops).
@@ -266,7 +275,10 @@ export const EditorCanvas: React.FC = () => {
   const isDark = theme === 'dark';
 
   return (
-    <div className="flex-1" style={{ background: isDark ? '#0f1117' : '#f8fafc' }}>
+    <div
+      className={`flex-1${isFigure ? ' opticalab-figure' : ''}`}
+      style={{ background: canvasBg(isDark) }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -284,6 +296,7 @@ export const EditorCanvas: React.FC = () => {
         }}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        nodesConnectable={!isFigure}
         onPaneClick={() => setSelectedNode(null)}
         onMoveEnd={(_, viewport) => setViewport(viewport)}
         // Frame the layout only the first time a document is opened; after that, come back
@@ -300,9 +313,9 @@ export const EditorCanvas: React.FC = () => {
       >
         <Background
           variant={BackgroundVariant.Dots}
-          color={isDark ? '#2a2d3a' : '#c0c8d8'}
-          gap={PX_PER_INCH}   /* one dot per breadboard hole */
-          size={2}
+          color={gridColour(isDark)}
+          gap={CANVAS_GRID.gap}   /* one dot per breadboard hole */
+          size={CANVAS_GRID.size}
         />
         <Controls
           style={{
@@ -310,7 +323,7 @@ export const EditorCanvas: React.FC = () => {
             border: isDark ? '1px solid #374151' : '1px solid #e2e8f0',
           }}
         />
-        <MiniMap
+        {!isFigure && <MiniMap
           style={{
             background: isDark ? '#1e2030' : '#f1f5f9',
             border: isDark ? '1px solid #374151' : '1px solid #e2e8f0',
@@ -323,7 +336,7 @@ export const EditorCanvas: React.FC = () => {
             };
             return colors[(n.data as OpticalNodeData)?.category ?? ''] ?? '#6b7280';
           }}
-        />
+        />}
       </ReactFlow>
     </div>
   );

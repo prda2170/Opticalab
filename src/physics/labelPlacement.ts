@@ -23,7 +23,6 @@ import {
 } from './geometry';
 import { getNodeGeometry, drawnHalfExtents } from '../utils/nodeGeometry';
 import { LABEL_BASE_PX } from '../utils/labelLayout';
-import { annotationBox } from '../utils/annotations';
 
 /** How far a label wants to stay from any beam, in px, before it counts as clear. */
 export const LABEL_CLEARANCE_PX = 7;
@@ -139,42 +138,9 @@ interface Obstacle {
 }
 
 /**
- * The annotation stack above each component, as a box.
- *
- * The figure prints λ, f, θ, R… above every component that has them, and a name landing on a
- * neighbour's "R=99.5%" reads no better than one landing on a beam. Reserved for every node,
- * including the one being labelled — its own stack is directly above it, which is precisely
- * the collision "straight up" used to make.
- *
- * The editor canvas does not draw annotations, and still reserves the space. That is
- * deliberate: one placement for both views means a label never moves when you switch to the
- * diagram or export a figure, and a little unused room on the canvas is the cheaper half of
- * that trade.
- */
-function annotationObstacles(nodes: Node<OpticalNodeData>[]): Obstacle[] {
-  const boxes: Obstacle[] = [];
-  for (const node of nodes) {
-    const box = annotationBox(node.data);
-    if (!box) continue;
-    const g = getNodeGeometry(node.data.type, node.data.rotation ?? 0);
-    boxes.push({
-      owner: node.id,
-      centre: {
-        x: node.position.x + g.width / 2,
-        y: node.position.y + g.height / 2 + box.dy,
-      },
-      halfWidth: box.halfWidth,
-      halfHeight: box.halfHeight,
-    });
-  }
-  return boxes;
-}
-
-/**
  * The components themselves.
  *
- * A name on top of the neighbouring cube is no better than a name on top of that cube's
- * "R=99.5%", and once the annotations were taken into account this was what was left. Its own
+ * A name on top of the neighbouring cube reads no better than a name on top of a beam. Its own
  * component is excluded — clearing that is `labelDistance`'s job, and it does it more tightly
  * than a bounding box could.
  *
@@ -234,7 +200,7 @@ function clearanceFrom(
 }
 
 /**
- * Choose a side for every label, avoiding the beams, the annotations and each other.
+ * Choose a side for every label, avoiding the beams, the components and each other.
  *
  * Greedy in node order, which is stable because the node list is: the same layout always
  * places the same way, so labels do not shuffle between renders. A label takes the first
@@ -248,12 +214,9 @@ export function placeLabels(
   segments: BeamSegment[],
 ): Map<string, Vec2> {
   const sides = new Map<string, Vec2>();
-  // Seeded with everything already on the figure — the components and the formulas above
-  // them — then grown as labels are placed, so a name also avoids the names before it.
-  const obstacles: Obstacle[] = [
-    ...annotationObstacles(nodes),
-    ...bodyObstacles(nodes).map(b => ({ ...b, skipFor: b.owner })),
-  ];
+  // Seeded with the components, then grown as labels are placed: a label avoids the optics
+  // and the names that got there before it.
+  const obstacles: Obstacle[] = bodyObstacles(nodes).map(b => ({ ...b, skipFor: b.owner }));
 
   for (const node of nodes) {
     const text = labelTextFor(node);

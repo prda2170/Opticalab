@@ -191,28 +191,19 @@ Straight path from `data.sx/sy → data.tx/ty` (auto edges) or xyflow handle coo
 the `showBeamLabels` toggle. Auto edges are `pointerEvents: none` because they sit
 above nodes in z-order.
 
-### Diagram (`components/Diagram/DiagramPanel.tsx`)
+### Figure tab (`components/Diagram/FigurePanel.tsx`, `FigureSVG.tsx`)
 
-Pure renderer over `store.segments` + `store.nodes` — no independent geometry.
-Icons are **nested `<svg>`**, not `<foreignObject>`, so the SVG rasterises and
-opens in Illustrator/Inkscape. Per-component annotations (λ, f, θ, R:T…) come from
-`getAnnotations` and can be toggled per key / per category. Exports SVG and PNG
-by serialising the one `<svg>` node.
+**The tab shows the editor's canvas**, mounted with `mode="figure"`: optics pinned, handles
+and minimap hidden, everything else identical — because it is the same component. There is no
+second picture of the layout to look worse than the first.
 
-Three conventions are the figure's own, and differ from the canvas on purpose:
-
-- **No text on the beams.** λ, power and spot size are carried by the annotations above the
-  components that set them; repeating them along every segment was the busiest thing in the
-  figure. Waist markers keep their tick, without the number.
-- **Mirrors go unnamed** (`UNNAMED_IN_FIGURE`): a bench has a lot of mirrors and they are all
-  called "M". The editor still labels them, since there a name is how you find a component.
-- **No box around a symbol.** Only instrument ("box") nodes get a background and border — for
-  them the border *is* the device housing. A mirror, cube, waveplate or coupler draws its glyph
-  bare, and the category dot goes with the box. The canvas keeps its boxes: there they are what
-  you click and drag.
-- **Spacing** (`physics/spread.ts`, `DEFAULT_SPREAD = 1.4`): every distance between
-  components is multiplied, while the components keep their size, so names and beams have
-  room. A display transform only — see the change log for what it must preserve.
+**Export goes through `FigureSVG`**, a flat `<svg>` rendered off-screen while the tab is open.
+It exists because a figure has to open in Illustrator, and the canvas is HTML/CSS — serialising
+that would mean `<foreignObject>`, which is neither editable nor reliably rasterisable. Its one
+job is to be indistinguishable from the canvas, and the way that survives future edits is
+`utils/canvasStyle.ts`: grid, box, beam and label values that *both* renderers read. Icons are
+nested `<svg>`, never `<foreignObject>`. Interaction chrome (handles, selection rings, lock
+badges) is deliberately absent — it is not part of the layout.
 
 ### Colour
 
@@ -508,6 +499,37 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — the figure is the canvas now
+
+**The Diagram tab renders `EditorCanvas mode="figure"`.** It was a second renderer with its own
+node styling, label sizes, arrowheads, annotations and spacing — which is exactly why it never
+looked as good as the editor: nobody was looking at it while they worked. Now it is the same
+component with the optics pinned and the handles and minimap out of the way, so "will the figure
+look like this?" is answered by construction.
+
+**`FigureSVG` is the export path, and only that.** Vector export has to survive (Illustrator),
+and the canvas is HTML/CSS, so a flat-SVG renderer still has to exist. It is rendered off-screen
+while the tab is open, so Export is instant and always matches the screen. Its numbers come from
+the new `utils/canvasStyle.ts` — grid pitch/size/colour, box radius/border/fill/shadow, beam
+widths and opacities, label base size — which `OpticalNode` and `EditorCanvas` read too. That is
+the only thing standing between "two renderers" and "two renderers that drift".
+
+**What converging deleted.** The figure's own conventions all went, because a toggle that changes
+the export but not the screen is worse than no toggle:
+
+- `physics/spread.ts` and its 12 tests — spacing is 1:1 now.
+- `utils/annotations.ts` and its 6 tests — no per-component λ/f/θ stacks. Manual notes are
+  meant to replace them, which is the point of the next change.
+- With the stacks gone, `labelPlacement` no longer reserves space for them (avoiding invisible
+  boxes would be strictly wrong). It still avoids beams, component bodies and other labels.
+- `UNNAMED_IN_FIGURE` (mirrors are named again, as on the canvas), beam arrowheads, waist
+  markers, the category dot on instrument boxes, and the diagram's separate zoom.
+- Beam labels are back on the shared `showBeamLabels` toggle, drawn as the canvas's chip.
+
+All of it is recoverable from `82e386a` if it turns out to be missed.
+
+**494 tests** (down from 516 with the two deleted modules), lint unchanged.
 
 ### 2026-08-23 — the figure drops the boxes around the optics
 

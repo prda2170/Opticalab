@@ -6,6 +6,7 @@ import { CATEGORY_COLORS } from '../../types/components';
 import { getNodeIcon, LaserBoxSVG } from './NodeIcons';
 import { getNodeGeometry, artworkOf } from '../../utils/nodeGeometry';
 import { labelLayout, type LabelLayout } from '../../utils/labelLayout';
+import { CANVAS_BOX, boxFill, labelColour } from '../../utils/canvasStyle';
 import { labelDistance, labelHalfExtents, DEFAULT_LABEL_SIDE } from '../../physics/labelPlacement';
 import type { Vec2 } from '../../physics/geometry';
 import { detectorSignalLabel, incidentPower as incidentPowerOf } from '../../physics/detector';
@@ -294,7 +295,7 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
   const { inputs, outputs } = centreHandles(getHandles(data));
   const { width, height } = geometry;
 
-  const labelColor = isDark ? '#e2e8f0' : '#1e293b';
+  const labelColor = labelColour(isDark);
 
   // Names are off unless asked for — see BaseNodeData.showLabel.
   const showLabel  = data.showLabel === true;
@@ -450,9 +451,11 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
 
   // ── Box node: badge with border, icon, label ───────────────────────────────
   const ringColor = selected ? '#60a5fa' : catColor;
-  const bgColor   = isDark
-    ? selected ? 'rgba(30,34,50,0.98)' : 'rgba(22,25,40,0.97)'
-    : selected ? 'rgba(255,255,255,1)'  : 'rgba(248,250,252,0.98)';
+  // Unselected is the shared look the export renderer reproduces; selected is brighter,
+  // and interaction states are the canvas's own business.
+  const bgColor   = selected
+    ? (isDark ? 'rgba(30,34,50,0.98)' : 'rgba(255,255,255,1)')
+    : boxFill(isDark);
   const shadowColor = selected
     ? '0 0 0 1.5px #60a5fa, 0 4px 14px rgba(0,0,0,0.45)'
     : '0 2px 8px rgba(0,0,0,0.25)';
@@ -480,9 +483,9 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
         <div style={{
           width: artwork.width,
           height: artwork.height,
-          borderRadius: 3,
+          borderRadius: CANVAS_BOX.radius,
           background: bgColor,
-          border: `1.5px solid ${ringColor}`,
+          border: `${CANVAS_BOX.borderWidth}px solid ${ringColor}`,
           boxShadow: shadowColor,
           display: 'flex',
           alignItems: 'center',
