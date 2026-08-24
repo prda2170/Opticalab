@@ -1,7 +1,7 @@
 {
-  "version": "1.1",
+  "version": "1.2",
   "metadata": {
-    "created": "2026-08-23T08:35:58.533Z",
+    "created": "2026-08-24T21:45:48.703Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -407,8 +407,8 @@
       "id": "node_1786901438191_26",
       "type": "optical",
       "position": {
-        "x": 446.21942772157155,
-        "y": 65.86987291348126
+        "x": 458.82910833474637,
+        "y": 53.86987291348126
       },
       "data": {
         "name": "EOM",
@@ -421,7 +421,8 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": -1
-        }
+        },
+        "rotation": 270
       }
     },
     {
@@ -809,6 +810,25 @@
         "type": "power_probe",
         "labelDx": -13,
         "labelDy": 50
+      }
+    },
+    {
+      "id": "annot_1787607800394_1",
+      "type": "region",
+      "position": {
+        "x": 425.1119757182104,
+        "y": 182.0178589325631
+      },
+      "data": {
+        "name": "",
+        "category": "utility",
+        "type": "region",
+        "w": 410,
+        "h": 243,
+        "shape": "rect",
+        "colour": "#3b82f6",
+        "fillOpacity": 0.08,
+        "caption": "MTS Lock"
       }
     }
   ],
