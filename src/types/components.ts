@@ -445,8 +445,13 @@ export interface RegionData extends BaseNodeData {
   /** Border colour; the wash is the same colour at `fillOpacity`. */
   colour: string;
   fillOpacity: number;
-  /** Drawn inside the top-left corner, where it cannot cover the optics. */
+  /** Drawn inside one corner, out of the way of the optics. */
   caption?: string;
+  /**
+   * Which corner the caption sits in, or `'none'` to keep the text without showing it.
+   * Unset reads as the top-left, where every region drawn before this option existed has it.
+   */
+  captionCorner?: 'tl' | 'tr' | 'bl' | 'br' | 'none';
   /** Behind the optics (default for a region) or in front of everything. */
   layer?: 'behind' | 'front';
   /** Order within the layer, for annotations that overlap each other. */

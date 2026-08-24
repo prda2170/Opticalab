@@ -6,7 +6,7 @@ import type { OpticalNodeData, RegionData, NoteData } from '../../types/componen
 import { sizeOf, getNodeGeometry, isKnownComponentType } from '../../utils/nodeGeometry';
 import { layoutToJSON, layoutFromJSON, LAYOUT_VERSION, layoutFingerprint } from '../../utils/export';
 import { parseRich, richPlain, SYMBOLS } from '../../utils/richText';
-import { withAlpha } from '../../utils/annotationStyle';
+import { withAlpha, regionCaptionCorner, REGION_CAPTION_CORNERS } from '../../utils/annotationStyle';
 import {
   stackLayerOf, stackOrderOf, stackZIndex, annotationsInLayer, STACK_BASE,
 } from '../../utils/stacking';
@@ -271,5 +271,45 @@ describe('stacking', () => {
   it('counts as unsaved work when it changes', () => {
     expect(layoutFingerprint([region({ zOrder: 1 })], []))
       .not.toBe(layoutFingerprint([region({ zOrder: 2 })], []));
+  });
+});
+
+// ── Where a region's caption sits ─────────────────────────────────────────────
+
+describe('regionCaptionCorner', () => {
+  it('reads all four corners', () => {
+    expect(regionCaptionCorner('tl')).toEqual({ hidden: false, right: false, bottom: false });
+    expect(regionCaptionCorner('tr')).toEqual({ hidden: false, right: true, bottom: false });
+    expect(regionCaptionCorner('bl')).toEqual({ hidden: false, right: false, bottom: true });
+    expect(regionCaptionCorner('br')).toEqual({ hidden: false, right: true, bottom: true });
+  });
+
+  it('hides the caption without forgetting it', () => {
+    // 'none' is a placement, not a deletion: the text stays in the data, so turning it back
+    // on does not mean retyping it.
+    expect(regionCaptionCorner('none').hidden).toBe(true);
+    const kept = region({ captionCorner: 'none' });
+    expect((kept.data as RegionData).caption).toBe('Cooling arm');
+  });
+
+  it('falls back to the top-left for anything unset or unrecognised', () => {
+    // Every region drawn before this option existed has its caption there.
+    const topLeft = { hidden: false, right: false, bottom: false };
+    expect(regionCaptionCorner(undefined)).toEqual(topLeft);
+    expect(regionCaptionCorner('middle')).toEqual(topLeft);
+    expect(regionCaptionCorner(3)).toEqual(topLeft);
+  });
+
+  it('offers exactly the five placements the picker shows, once each', () => {
+    const values = REGION_CAPTION_CORNERS.map(c => c.value);
+    expect(values).toEqual(['tl', 'tr', 'bl', 'br', 'none']);
+    expect(new Set(values).size).toBe(values.length);
+  });
+
+  it('survives a save, and counts as unsaved work when it changes', () => {
+    const back = layoutFromJSON(layoutToJSON([region({ captionCorner: 'br' })], []));
+    expect((back.nodes[0].data as RegionData).captionCorner).toBe('br');
+    expect(layoutFingerprint([region({ captionCorner: 'tl' })], []))
+      .not.toBe(layoutFingerprint([region({ captionCorner: 'none' })], []));
   });
 });

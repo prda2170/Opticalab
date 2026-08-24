@@ -526,6 +526,33 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 
 ## 6. Change log
 
+### 2026-08-24 — a region's caption picks its corner
+
+`captionCorner` on a region: top left, top right, bottom left, bottom right, or hidden. The
+default was the only option before, and unset still reads as the top-left, so every region drawn
+until now looks exactly as it did.
+
+A caption in the top-left is fine until the thing being highlighted *is* in the top-left, at
+which point the label sits on the optics it is naming. No clever auto-placement here: a region
+is hand-drawn, so the author already knows which corner is empty. `'none'` is a placement rather
+than a deletion — the text stays in the data, so turning the caption back on does not mean
+retyping it.
+
+`regionCaptionCorner(corner)` reduces the choice to two flags, `right` and `bottom`, which is
+all either renderer needs: the CSS one anchors with `left`/`right` and `top`/`bottom`, the SVG
+one with `textAnchor` and a baseline. Both measure the same `captionInset` from the same two
+edges, so they agree without sharing coordinates. The canvas caption also got `lineHeight: 1`,
+which is what makes its box the height of the text and keeps the bottom-corner baselines in the
+same place in both.
+
+Checked in the app with all five placements on screen at once: each canvas caption sits 6 px
+from the two edges of its corner, the hidden one renders no element at all, and in the exported
+SVG the left-hand corners are `textAnchor="start"` 6 px from the left edge while the right-hand
+ones are `end` 6 px from the right, with baselines 14.8 px below the top edge or 8.2 px above the
+bottom — the inset plus the ascent or descent, in both renderers.
+
+5 tests added. **576 tests total.**
+
 ### 2026-08-24 — multi-selection, and components that move as one
 
 **Ctrl (or Cmd) click adds to a selection.** `multiSelectionKeyCode` was `"Shift"`; it is now

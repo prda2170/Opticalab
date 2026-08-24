@@ -9,7 +9,9 @@ import { formatLength, formatSpot } from '../../physics/scale';
 import { formatDetuning } from '../../physics/wavelength';
 import { detectorVolts, formatVoltage, incidentPower, detectorBeat } from '../../physics/detector';
 import { getNodeIcon } from '../Nodes/NodeIcons';
-import { ANNOTATION_COLOURS } from '../../utils/annotationStyle';
+import {
+  ANNOTATION_COLOURS, REGION_CAPTION_CORNERS, type RegionCaptionCorner,
+} from '../../utils/annotationStyle';
 import { ANNOTATION_NODE_TYPES } from '../../types/components';
 import { stackLayerOf, stackOrderOf, type StackLayer } from '../../utils/stacking';
 import { groupIdOf } from '../../utils/grouping';
@@ -571,6 +573,14 @@ function renderFields(
     case 'region': return <>
       <Row label="Caption"><Inp type="text" value={data.caption ?? ''} placeholder="none"
         onChange={e => u({ caption: e.target.value })} /></Row>
+      <Row label="Caption at">
+        <Sel value={data.captionCorner ?? 'tl'}
+          onChange={e => u({ captionCorner: e.target.value as RegionCaptionCorner })}>
+          {REGION_CAPTION_CORNERS.map(c => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </Sel>
+      </Row>
       <Row label="Shape">
         <Sel value={data.shape} onChange={e => u({ shape: e.target.value as 'rect' | 'ellipse' })}>
           <option value="rect">Rectangle</option>

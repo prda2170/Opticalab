@@ -34,7 +34,9 @@ import {
   CANVAS_BEAM, CANVAS_BOX, CANVAS_GRID, CANVAS_LABEL,
   canvasBg, gridColour, boxFill, labelColour,
 } from '../../utils/canvasStyle';
-import { REGION_STYLE, NOTE_STYLE, withAlpha } from '../../utils/annotationStyle';
+import {
+  REGION_STYLE, NOTE_STYLE, withAlpha, regionCaptionCorner,
+} from '../../utils/annotationStyle';
 import { parseRich, SCRIPT_SCALE, SCRIPT_RISE } from '../../utils/richText';
 import { annotationsInLayer } from '../../utils/stacking';
 
@@ -160,6 +162,7 @@ const Region: React.FC<{ node: Node<OpticalNodeData> }> = ({ node }) => {
   const { width: w, height: h } = sizeOf(node);
   const x = node.position.x;
   const y = node.position.y;
+  const caption = regionCaptionCorner(data.captionCorner);
   const common = {
     fill: withAlpha(data.colour, data.fillOpacity),
     stroke: data.colour,
@@ -171,10 +174,15 @@ const Region: React.FC<{ node: Node<OpticalNodeData> }> = ({ node }) => {
       {data.shape === 'ellipse'
         ? <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...common} />
         : <rect x={x} y={y} width={w} height={h} rx={REGION_STYLE.radius} {...common} />}
-      {data.caption && (
+      {data.caption && !caption.hidden && (
         <text
-          x={x + REGION_STYLE.captionInset}
-          y={y + REGION_STYLE.captionInset + REGION_STYLE.captionSize * 0.85}
+          // `textAnchor` does the work at the right-hand corners: the text's near edge is
+          // `captionInset` from the same edge the canvas measures from, whatever it says.
+          x={caption.right ? x + w - REGION_STYLE.captionInset : x + REGION_STYLE.captionInset}
+          y={caption.bottom
+            ? y + h - REGION_STYLE.captionInset - REGION_STYLE.captionSize * 0.2
+            : y + REGION_STYLE.captionInset + REGION_STYLE.captionSize * 0.8}
+          textAnchor={caption.right ? 'end' : 'start'}
           fontSize={REGION_STYLE.captionSize} fill={data.colour}
           fontFamily="system-ui, sans-serif" fontWeight={600} letterSpacing={0.2}
         >

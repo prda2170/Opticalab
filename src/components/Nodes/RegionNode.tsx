@@ -8,7 +8,7 @@ import React from 'react';
 import { NodeResizer, useReactFlow, type NodeProps, type Node } from '@xyflow/react';
 import { useLayout } from '../../store/layoutContext';
 import type { RegionData } from '../../types/components';
-import { REGION_STYLE, withAlpha } from '../../utils/annotationStyle';
+import { REGION_STYLE, withAlpha, regionCaptionCorner } from '../../utils/annotationStyle';
 
 const RegionNode: React.FC<NodeProps<Node<RegionData>>> = ({ id, data, selected }) => {
   const { updateNodeData } = useReactFlow();
@@ -16,6 +16,7 @@ const RegionNode: React.FC<NodeProps<Node<RegionData>>> = ({ id, data, selected 
   const w = data.w;
   const h = data.h;
   const colour = data.colour;
+  const caption = regionCaptionCorner(data.captionCorner);
 
   return (
     <>
@@ -52,13 +53,21 @@ const RegionNode: React.FC<NodeProps<Node<RegionData>>> = ({ id, data, selected 
           cursor: 'move',
         }}
       />
-      {data.caption && (
+      {data.caption && !caption.hidden && (
         <div
           style={{
             position: 'absolute',
-            left: REGION_STYLE.captionInset,
-            top: REGION_STYLE.captionInset,
+            // Anchored to the chosen corner's own edges, so the text's near edge is always
+            // `captionInset` from them however long it is. `lineHeight: 1` makes the box the
+            // height of the text, which is what keeps the SVG baseline in the same place.
+            ...(caption.right
+              ? { right: REGION_STYLE.captionInset }
+              : { left: REGION_STYLE.captionInset }),
+            ...(caption.bottom
+              ? { bottom: REGION_STYLE.captionInset }
+              : { top: REGION_STYLE.captionInset }),
             fontSize: REGION_STYLE.captionSize,
+            lineHeight: 1,
             fontWeight: 600,
             color: colour,
             letterSpacing: 0.2,

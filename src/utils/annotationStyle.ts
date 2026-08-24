@@ -17,6 +17,46 @@ export const REGION_STYLE = {
   captionInset: 6,
 };
 
+/**
+ * Where a region's caption sits — any corner, or nowhere.
+ *
+ * A caption in the top-left is right until the thing you are highlighting *is* in the
+ * top-left, at which point the label sits on the optics it is naming. Rather than guess a
+ * clever placement (a region is a hand-drawn thing; the author knows where the room is),
+ * this is four corners and a way to turn it off.
+ */
+export type RegionCaptionCorner = 'tl' | 'tr' | 'bl' | 'br' | 'none';
+
+/** For the picker, in reading order. */
+export const REGION_CAPTION_CORNERS: { value: RegionCaptionCorner; label: string }[] = [
+  { value: 'tl', label: 'Top left' },
+  { value: 'tr', label: 'Top right' },
+  { value: 'bl', label: 'Bottom left' },
+  { value: 'br', label: 'Bottom right' },
+  { value: 'none', label: 'Hidden' },
+];
+
+/**
+ * The corner as two flags, which is all either renderer needs: the CSS one anchors with
+ * `left`/`right` and `top`/`bottom`, the SVG one with `textAnchor` and a baseline. Both
+ * measure the same inset from the same edges, so they land in the same place without
+ * sharing coordinates.
+ *
+ * Anything unset or unrecognised reads as the top-left, which is where every region drawn
+ * before this option existed has its caption.
+ */
+export function regionCaptionCorner(corner: unknown): {
+  hidden: boolean; right: boolean; bottom: boolean;
+} {
+  switch (corner) {
+    case 'none': return { hidden: true,  right: false, bottom: false };
+    case 'tr':   return { hidden: false, right: true,  bottom: false };
+    case 'bl':   return { hidden: false, right: false, bottom: true };
+    case 'br':   return { hidden: false, right: true,  bottom: true };
+    default:     return { hidden: false, right: false, bottom: false };
+  }
+}
+
 /** Notes. The text size is per note; this is the furniture around it. */
 export const NOTE_STYLE = {
   lineHeight: 1.35,
