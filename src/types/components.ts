@@ -107,6 +107,17 @@ export interface FiberAmplifierData extends BaseNodeData {
   mSquared?: number;
   /** Drive current, mA. Bookkeeping only, as on a laser. */
   current?: number;
+  /**
+   * Fibre this output is fed from: the id of a `fiber_coupler` elsewhere in the layout.
+   *
+   * Unset means free-running — it states its own wavelength and power, as it always has.
+   * Tagged, it carries what actually went into that coupler: wavelength and RF detuning,
+   * and (for a launcher) the coupled power. **Polarisation does not carry.** These are PM
+   * fibres, but the key angle relative to the bench is arbitrary, so the state at the far
+   * end is whatever this component says it is, not what went in. The spatial mode does not
+   * carry either — a fibre is a mode filter, which is most of the reason to use one.
+   */
+  fiberInputId?: string;
 }
 
 // ─── Conditioning ─────────────────────────────────────────────────────────────
@@ -240,6 +251,17 @@ export interface FiberLauncherData extends BaseNodeData {
   mSquared?: number;
   /** Legacy field from when the launcher was a pass-through; no longer used. */
   couplingEfficiency?: number;
+  /**
+   * Fibre this output is fed from: the id of a `fiber_coupler` elsewhere in the layout.
+   *
+   * Unset means free-running — it states its own wavelength and power, as it always has.
+   * Tagged, it carries what actually went into that coupler: wavelength and RF detuning,
+   * and (for a launcher) the coupled power. **Polarisation does not carry.** These are PM
+   * fibres, but the key angle relative to the bench is arbitrary, so the state at the far
+   * end is whatever this component says it is, not what went in. The spatial mode does not
+   * carry either — a fibre is a mode filter, which is most of the reason to use one.
+   */
+  fiberInputId?: string;
 }
 
 export interface FiberCableData extends BaseNodeData {

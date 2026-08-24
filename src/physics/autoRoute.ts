@@ -12,7 +12,10 @@ import type { OpticalNodeData, BeamEdgeData } from '../types/components';
 import type { BeamSegment, BeamState } from '../types/beam';
 import { getNodeGeometry, artworkOf, bodyBox, SURFACE_AT_45 } from '../utils/nodeGeometry';
 import { isOpticalNode } from '../types/components';
-import { advanceBeam, componentOutputs, emitterBeam, isEmitter, outputPortFor, MIN_POWER_MW, type PortKind } from './propagate';
+import {
+  advanceBeam, componentOutputs, emitterBeam, isEmitter, outputPortFor, fiberInputOf,
+  fiberFedBeam, MIN_POWER_MW, type PortKind,
+} from './propagate';
 import { mirrorReflect, perpOf, dirKey, rotateBy, boxHalfExtent, angleOf, snapAngle, type Vec2, type Pt } from './geometry';
 import { mmToPx, pxToMm } from './scale';
 import { drawnEndpoints, fanCollinearSegments } from './beamLayout';
@@ -364,29 +367,103 @@ export function autoRoute(
   // Lasers and fibre launchers both launch a beam into free space along the way they
   // face; a launcher states its own output rather than carrying it down a fibre.
   const rays: Ray[] = [];
-  for (const n of nodes) {
-    const beam = emitterBeam(n.data);
-    if (!beam) continue;
-    const rot = n.data.rotation ?? 0;
+
+  /** Launch a beam from an emitter, wherever that beam came from. */
+  const launch = (node: Node<OpticalNodeData>, beam: BeamState) => {
+    const rot = node.data.rotation ?? 0;
     const dir = bodyAxis(rot);
     rays.push({
       id:           ++raySeq,
-      sourceId:     n.id,
+      sourceId:     node.id,
       sourceHandle: 'out',
-      origin:       emitterOrigin(n, rot),
+      origin:       emitterOrigin(node, rot),
       dir,
       beam,
       path:         null,
       hits:         0,
     });
     // An emitter is its own first touch, so a beam arriving later can't re-aim it.
-    firstTouch.set(n.id, { dir, lane: 0 });
-    recordNodeBeam(n.id, beam);
+    firstTouch.set(node.id, { dir, lane: 0 });
+    recordNodeBeam(node.id, beam);
+  };
+
+  for (const n of nodes) {
+    // A tagged output has no light of its own — it waits for its fibre. See `seedFibreFed`.
+    if (fiberInputOf(n.data)) continue;
+    const beam = emitterBeam(n.data);
+    if (!beam) continue;
+    launch(n, beam);
   }
+
+  // ── Outputs fed from a fibre ──────────────────────────────────────────────
+  // A launcher or amplifier tagged to a coupler cannot emit until the trace has reached
+  // that coupler, which may itself be downstream of another tagged output. So seeding is a
+  // fixed point, exactly like the user-wired pass below: resolve what can be resolved,
+  // trace, and try again — until a round adds nothing.
+  const seeded = new Set<string>();
+  /** Couplers already feeding an output, so a second tag on one is caught. */
+  const claimed = new Map<string, string>();
+
+  const seedFibreFed = (): boolean => {
+    let added = false;
+    for (const node of nodes) {
+      const couplerId = fiberInputOf(node.data);
+      if (!couplerId || seeded.has(node.id)) continue;
+
+      const coupler = nodeById.get(couplerId);
+      if (!coupler) {
+        // The coupler was deleted, or the tag came from another layout on paste.
+        seeded.add(node.id);
+        result.warnings.push({
+          nodeId: node.id,
+          message: 'Tagged to a fibre input that is no longer in this layout, so it stays dark. Re-tag it, or clear the tag to make it free-running.',
+        });
+        continue;
+      }
+
+      // What arrived at the coupler, if anything has yet.
+      const arrival = result.nodeBeams.get(couplerId);
+      if (!arrival) continue;   // upstream not resolved — maybe next round
+
+      seeded.add(node.id);
+
+      // One fibre goes one place. A second output on the same coupler would double the
+      // light, so it is refused rather than quietly duplicated.
+      const already = claimed.get(couplerId);
+      if (already) {
+        result.warnings.push({
+          nodeId: node.id,
+          message: `Tagged to the same fibre input as ${nodeById.get(already)?.data.name ?? 'another output'}. One fibre feeds one output — this one stays dark until it is re-tagged.`,
+        });
+        continue;
+      }
+      claimed.set(couplerId, node.id);
+
+      // The coupler's own fibre port: coupling efficiency and insertion loss already
+      // applied, so the tag never re-derives the physics.
+      const coupled = outputPortFor(arrival, coupler.data, 'fiber')?.beam ?? null;
+      const beam = fiberFedBeam(node.data, coupled);
+      if (!beam) {
+        result.warnings.push({
+          nodeId: node.id,
+          message: 'No light is reaching the fibre input this is tagged to, so it emits nothing.',
+        });
+        continue;
+      }
+      launch(node, beam);
+      added = true;
+    }
+    return added;
+  };
 
   // ── Trace rays ────────────────────────────────────────────────────────────
   let steps = 0;
-  while (rays.length > 0) {
+  for (;;) {
+    // Queue drained: anything tagged to a coupler the trace has now reached can start.
+    // `seeded` makes this terminate — every output seeds at most once, so a fibre loop
+    // (coupler → launcher → back to the same coupler) runs out rather than round forever.
+    if (rays.length === 0 && !seedFibreFed()) break;
+    if (rays.length === 0) continue;
     if (steps++ >= MAX_TRACE_STEPS) { result.truncated = true; break; }
     const ray = rays.shift()!;
     const srcNode = nodeById.get(ray.sourceId);
@@ -646,6 +723,19 @@ export function autoRoute(
 
   // ── Resolve explicit user wiring with the same physics ────────────────────
   resolveUserWires(nodeById, userEdges, result, recordNodeBeam, emit);
+
+  // ── Fibre tags that never resolved ────────────────────────────────────────
+  // The fixed point has settled, so any output still waiting is waiting for light that is
+  // never coming: the arm upstream of its coupler is dark. That is the most useful case to
+  // report, and the one the seeding pass cannot know about while it is still running.
+  for (const node of nodes) {
+    const couplerId = fiberInputOf(node.data);
+    if (!couplerId || seeded.has(node.id)) continue;
+    result.warnings.push({
+      nodeId: node.id,
+      message: 'No light is reaching the fibre input this is tagged to, so it emits nothing.',
+    });
+  }
 
   // ── Separate beams that share a line, for drawing only ────────────────────
   fanCollinearSegments(result.segments);

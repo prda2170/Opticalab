@@ -214,8 +214,14 @@ const Hint: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 // ── Per-type field blocks ──────────────────────────────────────────────────────
 
-function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData>) => void): React.ReactNode {
+function renderFields(
+  data: OpticalNodeData,
+  update: (p: Partial<OpticalNodeData>) => void,
+  couplers: { id: string; name: string }[] = [],
+): React.ReactNode {
   const u = update as (p: Record<string, unknown>) => void;
+  /** Name of the fibre input this output is fed from, for the hints below. */
+  const fedFrom = (id: string | undefined) => couplers.find(c => c.id === id)?.name ?? 'that fibre';
 
   switch (data.type) {
     case 'laser_source': return <>
@@ -245,7 +251,14 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
       </Hint>
     </>;
     case 'fiber_amplifier': return <>
-      <Row label="Wavelength" unit="nm"><Num value={data.wavelength} onChange={v => u({ wavelength: v })} min={200} max={2000} /></Row>
+      <FibreInputRow value={data.fiberInputId} couplers={couplers}
+        onChange={id => u({ fiberInputId: id })} />
+      {data.fiberInputId
+        // Seeded: it amplifies whatever colour it is given, so its own λ would be fiction.
+        ? <Hint>λ and any RF detuning come from {fedFrom(data.fiberInputId)}. Output power is
+            still this amplifier's own — a gain stage is set by its pump, not its seed — but it
+            goes dark when the seed does.</Hint>
+        : <Row label="Wavelength" unit="nm"><Num value={data.wavelength} onChange={v => u({ wavelength: v })} min={200} max={2000} /></Row>}
       <Row label="Output power" unit="mW">
         <Num value={data.outputPower} onChange={v => u({ outputPower: v })} min={0} step={10} />
       </Row>
@@ -267,9 +280,12 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
         <Num value={data.current ?? 0} onChange={v => u({ current: v })} min={0} step={10} />
       </Row>
       <Hint>
-        Seeded down a fibre, so it needs no beam drawn to it — it starts a beam like a
-        laser does, and states its own output. The seed itself is not modelled: set the
-        output to what your power meter reads. w₀ is at the output collimator.
+        Seeded down a fibre, so it needs no beam drawn to it — it starts a beam like a laser
+        does. Set the output to what your power meter reads; gain is not modelled either way.{' '}
+        {data.fiberInputId
+          ? 'Tagged to a fibre input, so it takes its colour from the seed and goes dark without one.'
+          : 'Untagged, the seed is not modelled at all: it states its own wavelength and runs whether or not anything is feeding it.'}{' '}
+        w₀ is at the output collimator.
       </Hint>
     </>;
     case 'optical_amplifier': return <>
@@ -360,8 +376,17 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
       <Row label="Input NA"><Num value={data.inputNA} onChange={v => u({ inputNA: v })} min={0.01} max={1} step={0.01} /></Row>
     </>;
     case 'fiber_launcher': return <>
-      <Row label="Wavelength" unit="nm"><Num value={data.wavelength ?? 780} onChange={v => u({ wavelength: v })} min={200} max={2000} /></Row>
-      <Row label="Output power" unit="mW"><Num value={data.outputPower ?? 1} step={0.1} onChange={v => u({ outputPower: v })} min={0} /></Row>
+      <FibreInputRow value={data.fiberInputId} couplers={couplers}
+        onChange={id => u({ fiberInputId: id })} />
+      {data.fiberInputId
+        // A collimator is passive: what came out of the fibre is what it launches.
+        ? <Hint>λ, RF detuning and power all come from {fedFrom(data.fiberInputId)} — coupling
+            efficiency included. Polarisation below still applies: PM fibre holds the state,
+            but the key angle relative to the bench is arbitrary.</Hint>
+        : <>
+          <Row label="Wavelength" unit="nm"><Num value={data.wavelength ?? 780} onChange={v => u({ wavelength: v })} min={200} max={2000} /></Row>
+          <Row label="Output power" unit="mW"><Num value={data.outputPower ?? 1} step={0.1} onChange={v => u({ outputPower: v })} min={0} /></Row>
+        </>}
       <Row label="Polarization">
         <Sel value={data.polarization ?? 'H'} onChange={e => u({ polarization: e.target.value })}>
           <option value="H">H (horizontal)</option>
@@ -376,8 +401,11 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
       <Row label="Collimator f" unit="mm"><Num value={data.focalLength} onChange={v => u({ focalLength: v })} step={0.5} /></Row>
       <Hint>
         A launcher is a beam source, like a laser — light arrives down the fibre and is
-        launched into free space along the way it faces. Its output is stated here rather
-        than carried from a coupler. For a real collimator w₀ ≈ λf/(π·w_fibre).
+        launched into free space along the way it faces.{' '}
+        {data.fiberInputId
+          ? 'The fibre it comes down is tagged above, so the trace carries the real numbers.'
+          : 'Untagged, it states its own output rather than carrying it from a coupler.'}{' '}
+        For a real collimator w₀ ≈ λf/(π·w_fibre).
       </Hint>
     </>;
     case 'fiber_cable': return <>
@@ -631,6 +659,32 @@ const StackControls: React.FC<{
   </>
 );
 
+/**
+ * Which fibre input feeds this output, if any.
+ *
+ * Tagging is how a launcher or amplifier stops inventing light and starts carrying what
+ * actually went into a coupler somewhere else on the bench — wavelength and RF detuning, and
+ * the coupled power for a launcher. Untagged is the old behaviour and stays the default.
+ */
+const FibreInputRow: React.FC<{
+  value: string | undefined;
+  couplers: { id: string; name: string }[];
+  onChange: (id: string | undefined) => void;
+}> = ({ value, couplers, onChange }) => (
+  <Row label="Fibre input">
+    {couplers.length === 0 ? (
+      <span style={{ fontSize: 10.5, color: '#6b7280' }}>No fibre couplers in this layout.</span>
+    ) : (
+      <Sel value={value ?? ''} onChange={e => onChange(e.target.value || undefined)}>
+        <option value="">— none (free-running)</option>
+        {couplers.map(c => (
+          <option key={c.id} value={c.id} title={c.id}>{c.name}</option>
+        ))}
+      </Sel>
+    )}
+  </Row>
+);
+
 /** Colour picker for annotations: the fixed palette, because a figure wants few colours. */
 const Swatches: React.FC<{ value: string; onChange: (c: string) => void }> = ({ value, onChange }) => (
   <div className="flex gap-1">
@@ -677,6 +731,10 @@ export const PropertiesPanel: React.FC = () => {
 
   const data     = node.data;
   const isAnnotation = ANNOTATION_NODE_TYPES.has(node?.type ?? '');
+  // Every fibre input on the bench, for tagging an output to one.
+  const fibreCouplers = nodes
+    .filter(n => (n.data as OpticalNodeData).type === 'fiber_coupler')
+    .map(n => ({ id: n.id, name: (n.data as OpticalNodeData).name }));
   const catColor = CATEGORY_COLORS[data.category];
   // Beam arriving at this component, keyed by node id (the trace publishes both
   // an edge-keyed and a node-keyed map). `beam` is the strongest arrival, which is what
@@ -782,7 +840,11 @@ export const PropertiesPanel: React.FC = () => {
         <Divider />
 
         {/* Type-specific fields */}
-        {renderFields(data, partial => updateNodeData(node.id, partial as Partial<OpticalNodeData>))}
+        {renderFields(
+          data,
+          partial => updateNodeData(node.id, partial as Partial<OpticalNodeData>),
+          fibreCouplers,
+        )}
 
         {/* Loss — shown for all beam-path components */}
         {(new Set([

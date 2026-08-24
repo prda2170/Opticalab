@@ -3,7 +3,7 @@
 Working reference for this codebase: what it is, how it fits together, what's been
 changed, and what's still open. Kept up to date as work proceeds.
 
-Last updated: 2026-08-23
+Last updated: 2026-08-24
 
 ---
 
@@ -127,6 +127,13 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   is invisible to the physics — it cannot terminate, attenuate or split a beam — and finds
   what it needs by reading the finished `segments` instead. Probes are still in
   `store.nodes`, so they persist, undo, and appear in the diagram.
+- **A fibre output can be *tagged* to a fibre input.** `fiberInputId` on a launcher or
+  amplifier names a `fiber_coupler`, and the trace carries that coupler's fibre port —
+  wavelength and RF detuning, plus coupled power for a launcher — instead of the component's
+  own stated light. Because a tagged output cannot emit until the trace has reached its
+  coupler, **seeding is a fixed point**: seed what can be seeded, drain the ray queue, try
+  again, stop when a round adds nothing. Same shape as the user-wired pass. `seeded` makes it
+  terminate, so a fibre loop settles instead of running away.
 - **A component may declare more than one beam axis.** `componentLanes(data)`
   (`physics/lanes.ts`) returns perpendicular offsets from the centre; lane 0 is always
   0, so every single-lane component behaves as if lanes didn't exist. Offsets are
@@ -511,6 +518,64 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-24 — fibre outputs can carry what went into the fibre
+
+A launcher or amplifier can now be **tagged to a fibre coupler** elsewhere on the bench
+(`fiberInputId`, a select in the properties panel). Tagged, it stops inventing light and
+carries what actually went in — so an AOM upstream of the coupler shows up as a detuning at
+the far end of the fibre, and a figure that says "780 nm +160 MHz, 70 mW" is telling the truth
+about the bench. Untagged is unchanged and stays the default.
+
+**Most of it was already there.** `fiber_coupler` has always computed its fibre port —
+`{...inBeam, power: power × couplingEfficiency/100 × loss}` — and thrown it away as a dumped
+port. The tag reads that port via `outputPortFor(arrival, coupler, 'fiber')`, so coupling
+efficiency and insertion loss are never re-derived. And the tracer already had the pattern for
+"wait until upstream resolves": the user-wired pass is a `while (progressed)` fixed point.
+
+**Seeding became a fixed point.** It used to be one pass over the nodes before the ray queue
+drained. Now free-running emitters seed up front, tagged ones seed whenever the queue empties,
+and the loop exits when a round adds nothing:
+
+```ts
+for (;;) {
+  if (rays.length === 0 && !seedFibreFed()) break;
+  ...
+}
+```
+
+`seeded` guarantees each output seeds at most once, which is what makes a fibre loop (coupler →
+launcher → back to that coupler) settle rather than amplify forever.
+
+**What carries, and what does not** (`fiberFedBeam`):
+
+| | Carries? | Why |
+|---|---|---|
+| Wavelength, RF detuning | ✅ | The whole point — an AOM before the coupler shifts the far end |
+| Power | ✅ launcher / ❌ amplifier | A collimator is passive; a gain stage is set by its pump, not its seed |
+| Polarisation | ❌ | These are PM fibres, but the key angle relative to the bench is arbitrary, so the state at the output is fiction unless the component states it |
+| Spatial mode (`q`, w₀) | ❌ | A fibre only guides its own mode. Inheriting the input's `q` would let a tight focus at the coupler come out the far end still converging |
+
+**A tagged amplifier goes dark when its seed does**, which is the behaviour worth having: unplug
+the arm upstream and the whole downstream half of the figure goes out, rather than glowing on a
+number nobody re-checked.
+
+**Four ways to get it wrong, each with a warning** rather than a silent lie: no light reaching
+the tagged coupler (raised after the fixed point settles, since that is the only point at which
+"never" is distinguishable from "not yet"); the coupler deleted or the launcher pasted into
+another document; two outputs claiming one coupler — one fibre feeds one output, so the second
+stays dark rather than duplicating power; and a coupled beam below `MIN_POWER_MW`.
+
+No format bump: `fiberInputId` is optional, so old files load untouched. An older build would
+ignore the tag and show the stated numbers, which is a real (if narrow) misread — worth knowing
+if a colleague opens a tagged layout on an out-of-date install.
+
+19 tests (`__tests__/fiberTag.test.ts`): λ and detuning carrying, coupled power tracking the
+efficiency, polarisation and mode *not* carrying, an untagged launcher unchanged, an amplifier
+keeping its stated power, a dark seed going dark with a warning, a two-fibre chain resolving in
+either node order (the fixed point earning its keep), a fibre loop terminating, the duplicate
+and dangling tags warning, a tag not being mistaken for a beam path, and the seed helper's own
+edges. **544 tests total.**
 
 ### 2026-08-23 — notes edit in place, and annotations stack
 

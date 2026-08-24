@@ -480,6 +480,54 @@ export function emitterBeam(node: OpticalNodeData): BeamState | null {
   }
 }
 
+/** Is this emitter fed from a fibre elsewhere in the layout rather than free-running? */
+export function fiberInputOf(node: OpticalNodeData): string | null {
+  if (node.type !== 'fiber_launcher' && node.type !== 'fiber_amplifier') return null;
+  const id = node.fiberInputId;
+  return typeof id === 'string' && id !== '' ? id : null;
+}
+
+/**
+ * What a tagged launcher or amplifier puts into free space, given the light that went into
+ * the fibre feeding it.
+ *
+ * `coupled` is the coupler's fibre-port beam — already reduced by its coupling efficiency —
+ * so this is only about which of its properties survive the journey:
+ *
+ * - **Wavelength and RF detuning carry.** This is the point of the feature: an AOM upstream
+ *   of the coupler shifts what comes out of the far end, and a figure that says 780 nm at
+ *   one end and 780 nm +160 MHz at the other is telling the truth about the bench.
+ * - **Power carries for a launcher** (it is a passive collimator: what goes in comes out,
+ *   less the coupling loss already applied). An **amplifier states its own output** — it is
+ *   a gain stage, and its output power is set by the pump, not the seed.
+ * - **Polarisation does not carry.** These are PM fibres, but the key angle relative to the
+ *   bench is arbitrary, so the state at the output is whatever this component is set to.
+ * - **The spatial mode does not carry.** A fibre only guides its own mode; the output waist
+ *   is the collimator's, and inheriting the input's `q` would let a tight focus at the
+ *   coupler come out the far end still converging.
+ *
+ * Returns null when there is nothing to amplify or launch — a dark seed is a dark output,
+ * which is what makes an unplugged upstream arm visible in the figure.
+ */
+export function fiberFedBeam(node: OpticalNodeData, coupled: BeamState | null): BeamState | null {
+  if (node.type !== 'fiber_launcher' && node.type !== 'fiber_amplifier') return null;
+  if (!coupled || coupled.power < MIN_POWER_MW) return null;
+
+  const power = node.type === 'fiber_amplifier'
+    ? node.outputPower
+    : coupled.power;
+
+  const beam = sourceBeam(
+    coupled.wavelength,
+    power,
+    node.polarization ?? 'H',
+    node.waist,
+    node.mSquared,
+  );
+  // Carried separately from `sourceBeam`, which describes a component stating its own light.
+  return coupled.detuningHz ? { ...beam, detuningHz: coupled.detuningHz } : beam;
+}
+
 function sourceBeam(
   wavelengthNm: number,
   powerMw: number,
