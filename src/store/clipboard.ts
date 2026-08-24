@@ -8,6 +8,7 @@
 // as xyflow reports it (`node.selected`), plus the user-drawn edges whose two ends are both
 // in that selection: an edge to something you did not copy has nowhere to land.
 import type { Node, Edge } from '@xyflow/react';
+import { groupIdOf, newGroupId } from '../utils/grouping';
 import type { OpticalNodeData, BeamEdgeData } from '../types/components';
 import { PX_PER_INCH } from '../physics/scale';
 
@@ -76,6 +77,15 @@ export function materialise(
   const idMap = new Map<string, string>();
   for (const n of content.nodes) idMap.set(n.id, pastedId());
 
+  // Groups are remapped like ids, and for the same reason: paste a group twice and the two
+  // copies must be two groups, not one six-component group that drags as a lump. A group
+  // whose other members were not copied comes back as a group of what *was*.
+  const groupMap = new Map<string, string>();
+  for (const n of content.nodes) {
+    const gid = groupIdOf(n);
+    if (gid && !groupMap.has(gid)) groupMap.set(gid, newGroupId(Date.now()));
+  }
+
   const nodes = content.nodes.map(n => ({
     ...n,
     id: idMap.get(n.id)!,
@@ -83,7 +93,11 @@ export function materialise(
     selected: true,
     // Locked components paste unlocked-in-place: the lock is about *this* bench's layout,
     // and a pasted copy has just been moved by definition.
-    data: { ...n.data, locked: false } as OpticalNodeData,
+    data: {
+      ...n.data,
+      locked: false,
+      ...(groupIdOf(n) ? { groupId: groupMap.get(groupIdOf(n)!) } : {}),
+    } as OpticalNodeData,
     // Dropped so xyflow re-measures rather than trusting a stale size.
     measured: undefined,
     dragging: false,

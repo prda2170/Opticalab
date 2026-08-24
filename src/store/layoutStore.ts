@@ -13,6 +13,7 @@
 // nothing imports an instance directly.
 import { createStore, type StoreApi } from 'zustand';
 import type { Node, Edge } from '@xyflow/react';
+import { groupIdOf, newGroupId } from '../utils/grouping';
 import type { OpticalNodeData, BeamEdgeData } from '../types/components';
 import { isOpticalNode } from '../types/components';
 import type { BeamState, BeamSegment } from '../types/beam';
@@ -100,6 +101,12 @@ export interface LayoutState {
 
   // Update a single node's data (increments canvasVersion so EditorCanvas reloads)
   updateNodeData: (id: string, data: Partial<OpticalNodeData>) => void;
+  /**
+   * Put the current selection in a group, or take it out of one. Grouping needs two
+   * components to mean anything; ungrouping clears whatever the selection belongs to.
+   */
+  groupSelected: () => void;
+  ungroupSelected: () => void;
 
   /**
    * Add components and wiring — a paste. Snapshots first, so one Ctrl+Z takes it back, and
@@ -232,6 +239,44 @@ export function createLayoutStore(initial?: LayoutInit): LayoutStoreApi {
           canvasVersion: state.canvasVersion + 1, // signal EditorCanvas to reload
         }));
         get().recomputeBeams();
+        refreshDirty();
+      },
+
+      groupSelected: () => {
+        const { nodes, edges } = get();
+        const chosen = nodes.filter(n =>
+          (n as { selected?: boolean }).selected && n.type !== 'beam_endpoint');
+        if (chosen.length < 2) return;
+        get().saveSnapshot(nodes, edges);
+        const groupId = newGroupId(Date.now());
+        const ids = new Set(chosen.map(n => n.id));
+        set(state => ({
+          nodes: state.nodes.map(n => ids.has(n.id)
+            ? { ...n, data: { ...n.data, groupId } as OpticalNodeData }
+            : n),
+          canvasVersion: state.canvasVersion + 1,
+        }));
+        refreshDirty();
+      },
+
+      ungroupSelected: () => {
+        const { nodes, edges } = get();
+        const chosen = nodes.filter(n => (n as { selected?: boolean }).selected);
+        // Every group any selected component belongs to comes apart, so ungrouping works
+        // whether you selected one member or all of them.
+        const groups = new Set(chosen.map(n => groupIdOf(n)).filter(Boolean) as string[]);
+        if (groups.size === 0) return;
+        get().saveSnapshot(nodes, edges);
+        set(state => ({
+          nodes: state.nodes.map(n => {
+            const gid = groupIdOf(n);
+            if (!gid || !groups.has(gid)) return n;
+            const { groupId: _dropped, ...rest } = n.data as OpticalNodeData & { groupId?: string };
+            void _dropped;
+            return { ...n, data: rest as OpticalNodeData };
+          }),
+          canvasVersion: state.canvasVersion + 1,
+        }));
         refreshDirty();
       },
 

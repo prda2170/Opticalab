@@ -34,6 +34,12 @@ export interface BaseNodeData {
   category: ComponentCategory;
   locked?: boolean;        // prevents drag when true
   /**
+   * Components that move as one. A shared id, not an xyflow parent/child relationship —
+   * see `utils/grouping.ts` for why. Unset means ungrouped, which is every node until
+   * someone groups it.
+   */
+  groupId?: string;
+  /**
    * Draw the component's name beside it. Off unless explicitly true — a bench with
    * every part named is hard to read, and the name is on hover and in the properties
    * panel regardless.

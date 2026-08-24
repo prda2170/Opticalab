@@ -127,6 +127,13 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   is invisible to the physics — it cannot terminate, attenuate or split a beam — and finds
   what it needs by reading the finished `segments` instead. Probes are still in
   `store.nodes`, so they persist, undo, and appear in the diagram.
+- **A group is a shared `groupId`, not an xyflow parent.** Native parent/child grouping would
+  make `node.position` parent-relative, and every consumer here — the tracer, snapping, label
+  placement, the figure renderer — reads it as absolute canvas coordinates. So
+  `utils/grouping.ts` builds grouping out of two rules instead: `groupSiblingMoves` gives the
+  rest of a group the same drag delta, and `rigidGroupSnaps` rewrites the router's per-node
+  snaps so one member's offset moves the whole group. Everything else (multi-drag, clipboard,
+  Delete) already worked on selections.
 - **A fibre output can be *tagged* to a fibre input.** `fiberInputId` on a launcher or
   amplifier names a `fiber_coupler`, and the trace carries that coupler's fibre port —
   wavelength and RF detuning, plus coupled power for a launcher — instead of the component's
@@ -518,6 +525,70 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-24 — multi-selection, and components that move as one
+
+**Ctrl (or Cmd) click adds to a selection.** `multiSelectionKeyCode` was `"Shift"`; it is now
+`['Control', 'Meta', 'Shift']`. Shift stays deliberately: it is also `selectionKeyCode`, so
+Shift-drag draws a selection box, and keeping both halves of that gesture on one modifier is
+worth more than tidiness. **Left-drag still pans** — the box gesture already existed on Shift,
+so there was nothing to re-home.
+
+**Cut, copy and paste already worked on multi-selections** and needed nothing: `clipboard.ts`
+reads `node.selected` (xyflow's own flag), not the singular `selectedNodeId`, and the toolbar
+already counted them. Grouping is the only genuinely new thing.
+
+**A group is a shared `groupId` in node data.** The obvious implementation — xyflow's
+`parentId`/`extent: 'parent'` — is the wrong one here: it makes `node.position` relative to the
+parent, and the tracer, snapping, label placement and the figure renderer all read `position`
+as absolute canvas coordinates. Rewriting the geometry layer to buy a drag behaviour is a bad
+trade. Two rules on a shared id do the same job:
+
+- `groupSiblingMoves(changes, nodes)` returns the extra position changes that keep a group
+  together, applied in `onNodesChange`. Deliberately **not** built on selection: a group holds
+  together whether or not you clicked every member first, which is what "dragging moves them as
+  a group" actually means. Siblings already moving in the same batch are skipped, so dragging a
+  selection that happens to contain a whole group does not shift it twice.
+- `rigidGroupSnaps(nodes, snaps)` rewrites the router's snap map. This is the one that matters
+  physically: the tracer snaps components onto beams **one at a time**, so a group dragged near
+  a beam would have the touched member land on the axis while the rest stayed put — the group
+  silently deforming. Now one snapped member decides the offset (first in node order, so it is
+  stable) and every member takes it.
+
+**A fixed component anchors its group.** `locked` beats grouping in both rules: a locked member
+never moves with a drag, and a group containing one has its snaps dropped entirely. "Fix
+position" is a statement about the bench, and the alternatives are a group that tears or one
+that drags a bolted-down optic across the table.
+
+**Clicking one member selects all of them**, so Copy, Cut and Delete act on the whole group.
+Selection also drives the visual: every member draws its ring, plus one dashed box around the
+group's bounds via `ViewportPortal` — in the frame that pans and zooms, but not a node, so it
+stays out of the trace and out of the way of clicks. Canvas only: a group is an editing aid,
+not layout content, so it has no business in the figure.
+
+**Pasting a group makes a new group** (`materialise` remaps `groupId` alongside `id`). Paste
+twice without that and the two copies become one six-component lump. Copying part of a group
+gives a group of what was copied.
+
+**With more than one component selected the properties panel shows the set, not a component**:
+count, group state, and Group / Ungroup / Copy / Cut / Paste. Per-component fields are absent on
+purpose — with a dozen things selected there is no honest answer to "what is the wavelength".
+Ctrl+G groups, Ctrl+Shift+G ungroups.
+
+No format bump: `groupId` is optional, so old files load untouched.
+
+27 tests (`__tests__/grouping.test.ts`, plus four in `clipboard.test.ts`): the drag delta,
+ignoring non-moves and zero-moves, not double-moving a sibling, locked members, two groups at
+once, rigid snapping including two members disagreeing, anchoring on a locked member,
+idempotence, bounds with a per-instance size, and the paste remapping. **571 tests total.**
+
+Verified in the app for everything the preview pane can drive: Ctrl+click building a
+three-component selection, the panel switching to group actions, Group assigning one group, the
+dashed outline landing on the members' bounds, and — the one that needed no mouse at all —
+rigid snapping on load: a grouped mirror 6 px off the beam snapped onto the axis and both its
+partners, nowhere near a beam, moved by exactly the same 6 px. Mouse-drag propagation is the one
+path this environment cannot exercise (xyflow's node measurement does not work in it), so it
+rests on the unit tests.
 
 ### 2026-08-24 — fibre outputs can carry what went into the fibre
 

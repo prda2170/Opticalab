@@ -5,6 +5,7 @@ import {
   Background,
   Controls,
   MiniMap,
+  ViewportPortal,
   type NodeTypes,
   type EdgeTypes,
   BackgroundVariant,
@@ -16,6 +17,7 @@ import {
   type Node,
   type Edge,
   type EdgeChange,
+  type NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 // Override xyflow handle styles AFTER the xyflow CSS so our rules win
@@ -37,6 +39,9 @@ import { getNodeGeometry } from '../../utils/nodeGeometry';
 import { probeSnaps } from '../../physics/probe';
 import { autoRoute } from '../../physics/autoRoute';
 import { CANVAS_GRID, canvasBg, gridColour } from '../../utils/canvasStyle';
+import {
+  groupIdOf, membersOf, groupSiblingMoves, rigidGroupSnaps, groupBounds, selectedGroupIds,
+} from '../../utils/grouping';
 
 type AppNode = Node<OpticalNodeData>;
 type AppEdge = Edge<BeamEdgeData>;
@@ -52,6 +57,9 @@ const nodeTypes: NodeTypes = {
 
 const edgeTypes: EdgeTypes = { beam: BeamEdge };
 
+/** Breathing room between a group's components and the dashed box around them, px. */
+const GROUP_OUTLINE_PAD = 8;
+
 let nodeIdCounter = 1;
 const newNodeId = () => `node_${Date.now()}_${nodeIdCounter++}`;
 
@@ -64,7 +72,7 @@ export type CanvasMode = 'edit' | 'figure';
 
 export const EditorCanvas: React.FC<{ mode?: CanvasMode }> = ({ mode = 'edit' }) => {
   const isFigure = mode === 'figure';
-  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState<AppEdge>([]);
 
   const canvasVersion   = useLayout(s => s.canvasVersion);
@@ -147,6 +155,10 @@ export const EditorCanvas: React.FC<{ mode?: CanvasMode }> = ({ mode = 'edit' })
         snaps.set(nid, pos);
       }
 
+      // A grouped component cannot be snapped on its own without deforming the group, so
+      // one member's offset is applied to all of them. See `rigidGroupSnaps`.
+      const rigid = rigidGroupSnaps(nodes as Node<OpticalNodeData>[], snaps);
+
       // Apply position snaps, rotations, and beam-incoming-directions.
       const rotChanged = rotations.size > 0 && [...rotations.entries()].some(
         ([nid, rot]) => {
@@ -161,10 +173,10 @@ export const EditorCanvas: React.FC<{ mode?: CanvasMode }> = ({ mode = 'edit' })
           return !cur || cur.dx !== dir.dx || cur.dy !== dir.dy;
         }
       );
-      const needNodeUpdate = snaps.size > 0 || rotChanged || dirChanged;
+      const needNodeUpdate = rigid.size > 0 || rotChanged || dirChanged;
       const newNodes = needNodeUpdate
         ? (nodes as AppNode[]).map(n => {
-            const snap  = snaps.get(n.id);
+            const snap  = rigid.get(n.id);
             const rot   = rotations.get(n.id);
             const dir   = beamInDirs.get(n.id);
             // Never move a fixed (locked) component via auto-snap.
@@ -225,6 +237,29 @@ export const EditorCanvas: React.FC<{ mode?: CanvasMode }> = ({ mode = 'edit' })
     }, 150);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
   }, [nodes, edges, syncFromCanvas]);
+
+  // ── Node changes: a group moves as one ────────────────────────────────────
+  // Done here rather than on selection, so a group holds together whether or not the user
+  // clicked every member first — which is what "dragging moves them as a group" means.
+  const onNodesChange = useCallback(
+    (changes: NodeChange<AppNode>[]) => {
+      const extra = groupSiblingMoves(changes, nodes as Node<OpticalNodeData>[]);
+      onNodesChangeBase(extra.length > 0 ? [...changes, ...extra] : changes);
+    },
+    [nodes, onNodesChangeBase],
+  );
+
+  // Clicking one member selects the whole group, so Copy, Cut and Delete act on all of it.
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: AppNode) => {
+      setSelectedNode(node.id);
+      const groupId = groupIdOf(node);
+      if (!groupId) return;
+      const ids = new Set(membersOf(nodes as Node<OpticalNodeData>[], groupId).map(n => n.id));
+      setNodes(prev => prev.map(n => (ids.has(n.id) ? { ...n, selected: true } : n)));
+    },
+    [nodes, setNodes, setSelectedNode],
+  );
 
   // ── Edge changes: block deletion of auto-edges ────────────────────────────
   const onEdgesChange = useCallback(
@@ -316,11 +351,40 @@ export const EditorCanvas: React.FC<{ mode?: CanvasMode }> = ({ mode = 'edit' })
         fitViewOptions={{ padding: 0.2 }}
         defaultEdgeOptions={{ type: 'beam' }}
         deleteKeyCode="Delete"
-        multiSelectionKeyCode="Shift"
+        onNodeClick={onNodeClick}
+        // Ctrl (or Cmd) to add to a selection, as asked for. Shift stays because it is also
+        // `selectionKeyCode` — Shift-drag draws a selection box — and having the two halves
+        // of the same gesture on one modifier is worth keeping.
+        multiSelectionKeyCode={['Control', 'Meta', 'Shift']}
 
         onlyRenderVisibleElements={false}
         style={{ background: 'transparent' }}
       >
+        {/* Group outlines. Only while a member is selected, and only on the canvas: a group
+            is an editing aid, not part of the layout, so it has no business in the figure.
+            `ViewportPortal` puts them in the panned/zoomed frame without making them nodes,
+            which keeps them out of the trace and out of the way of clicks. */}
+        <ViewportPortal>
+          {selectedGroupIds(nodes as Node<OpticalNodeData>[]).map(groupId => {
+            const box = groupBounds(nodes as Node<OpticalNodeData>[], groupId);
+            if (!box) return null;
+            const pad = GROUP_OUTLINE_PAD;
+            return (
+              <div
+                key={groupId}
+                style={{
+                  position: 'absolute',
+                  left: box.x - pad, top: box.y - pad,
+                  width: box.width + pad * 2, height: box.height + pad * 2,
+                  border: `1px dashed ${isDark ? '#64748b' : '#94a3b8'}`,
+                  borderRadius: 6,
+                  pointerEvents: 'none',
+                }}
+              />
+            );
+          })}
+        </ViewportPortal>
+
         <Background
           variant={BackgroundVariant.Dots}
           color={gridColour(isDark)}

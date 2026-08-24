@@ -12,6 +12,8 @@ import { getNodeIcon } from '../Nodes/NodeIcons';
 import { ANNOTATION_COLOURS } from '../../utils/annotationStyle';
 import { ANNOTATION_NODE_TYPES } from '../../types/components';
 import { stackLayerOf, stackOrderOf, type StackLayer } from '../../utils/stacking';
+import { groupIdOf } from '../../utils/grouping';
+import { useClipboard } from '../../store/useClipboard';
 import { angleStepFor, SURFACE_AT_45 } from '../../utils/nodeGeometry';
 import { norm360, snapAngle } from '../../physics/geometry';
 
@@ -703,6 +705,64 @@ const Swatches: React.FC<{ value: string; onChange: (c: string) => void }> = ({ 
   </div>
 );
 
+/**
+ * What the panel shows when more than one component is selected.
+ *
+ * Per-component fields are deliberately absent: with a dozen things selected there is no
+ * honest answer to "what is the wavelength", and editing one of them silently would be worse
+ * than offering nothing. What a selection *can* do is move as a unit, or go on the clipboard.
+ */
+const SelectionPanel: React.FC<{ count: number; groups: string[] }> = ({ count, groups }) => {
+  const groupSelected = useLayout(s => s.groupSelected);
+  const ungroupSelected = useLayout(s => s.ungroupSelected);
+  const { clipboardCount, copy, cut, paste } = useClipboard();
+
+  const btn: React.CSSProperties = {
+    width: '100%', padding: '5px 8px', marginBottom: 6, borderRadius: 4, cursor: 'pointer',
+    background: '#1e2030', color: '#e2e8f0', border: '1px solid #374151',
+    fontSize: 11, textAlign: 'left',
+  };
+
+  return (
+    <div style={{
+      width: 224, background: '#0f1117', borderLeft: '1px solid #1f2937',
+      padding: 12, color: '#d1d5db', fontSize: 12, userSelect: 'none', overflowY: 'auto',
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>{count} components</div>
+      <div style={{ fontSize: 10.5, color: '#6b7280', marginBottom: 10 }}>
+        {groups.length === 0
+          ? 'Not grouped'
+          : groups.length === 1 ? 'One group' : `${groups.length} groups`}
+      </div>
+
+      <button style={btn} onClick={groupSelected} title="Move these as one (Ctrl+G)">
+        ⧉ Group
+      </button>
+      <button style={{ ...btn, opacity: groups.length === 0 ? 0.5 : 1 }}
+        onClick={ungroupSelected} disabled={groups.length === 0}
+        title="Break the group up (Ctrl+Shift+G)">
+        ⇔ Ungroup
+      </button>
+
+      <Divider />
+
+      <button style={btn} onClick={copy} title={`Copy ${count} components (Ctrl+C)`}>⧉ Copy</button>
+      <button style={btn} onClick={cut} title={`Cut ${count} components (Ctrl+X)`}>✂ Cut</button>
+      <button style={{ ...btn, opacity: clipboardCount === 0 ? 0.5 : 1 }}
+        onClick={paste} disabled={clipboardCount === 0}
+        title={clipboardCount === 0 ? 'Clipboard is empty' : `Paste ${clipboardCount} (Ctrl+V)`}>
+        📋 Paste
+      </button>
+
+      <Hint>
+        Grouped components keep their spacing when dragged, and the router snaps the group as
+        one piece rather than pulling members onto separate beams. A fixed component anchors
+        its whole group.
+      </Hint>
+    </div>
+  );
+};
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export const PropertiesPanel: React.FC = () => {
@@ -714,6 +774,14 @@ export const PropertiesPanel: React.FC = () => {
   const allWarnings    = useLayout(s => s.warnings);
 
   const node = nodes.find(n => n.id === selectedNodeId);
+
+  // More than one selected: offer what applies to a set, not to a component.
+  const selected = nodes.filter(n =>
+    (n as { selected?: boolean }).selected && n.type !== 'beam_endpoint');
+  if (selected.length > 1) {
+    const groups = [...new Set(selected.map(n => groupIdOf(n)).filter(Boolean) as string[])];
+    return <SelectionPanel count={selected.length} groups={groups} />;
+  }
 
   if (!node) {
     return (

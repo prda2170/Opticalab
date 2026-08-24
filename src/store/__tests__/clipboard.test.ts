@@ -246,3 +246,51 @@ describe('moving components between documents', () => {
     expect(doc.store.getState().history).toEqual([]);
   });
 });
+
+// ── Groups survive the clipboard, as new groups ───────────────────────────────
+
+describe('pasting a group', () => {
+  const doc = () => newDocument().id;
+
+  it('keeps the members together', () => {
+    const nodes = [
+      mirror('M1', 100, 100, true), mirror('M2', 200, 100, true),
+    ].map(n => ({ ...n, data: { ...n.data, groupId: 'g1' } as OpticalNodeData }));
+    const content = collectSelection(nodes, [], 'src')!;
+    const { nodes: pasted } = materialise(content, doc());
+    const groups = new Set(pasted.map(n => (n.data as { groupId?: string }).groupId));
+    expect(groups.size).toBe(1);
+    expect([...groups][0]).toBeTruthy();
+  });
+
+  it('gives each paste its own group, so two copies are two groups', () => {
+    // Otherwise pasting twice makes one four-component lump that drags as a unit.
+    const nodes = [
+      mirror('M1', 100, 100, true), mirror('M2', 200, 100, true),
+    ].map(n => ({ ...n, data: { ...n.data, groupId: 'g1' } as OpticalNodeData }));
+    const content = collectSelection(nodes, [], 'src')!;
+    const first = materialise(content, doc()).nodes[0].data as { groupId?: string };
+    const second = materialise(content, doc()).nodes[0].data as { groupId?: string };
+    expect(first.groupId).not.toBe(second.groupId);
+    // And neither is the original group id.
+    expect(first.groupId).not.toBe('g1');
+  });
+
+  it('leaves an ungrouped component ungrouped', () => {
+    const content = collectSelection([mirror('M1', 100, 100, true)], [], 'src')!;
+    const pasted = materialise(content, doc()).nodes[0].data as { groupId?: string };
+    expect(pasted.groupId).toBeUndefined();
+  });
+
+  it('copies a partial group as a group of what was copied', () => {
+    // Selecting two of three members and pasting gives a pair that moves together — the
+    // member left behind is not silently dragged along by the copy.
+    const nodes = [
+      mirror('M1', 100, 100, true), mirror('M2', 200, 100, true), mirror('M3', 300, 100, false),
+    ].map(n => ({ ...n, data: { ...n.data, groupId: 'g1' } as OpticalNodeData }));
+    const { nodes: pasted } = materialise(collectSelection(nodes, [], 'src')!, doc());
+    expect(pasted).toHaveLength(2);
+    const groups = new Set(pasted.map(n => (n.data as { groupId?: string }).groupId));
+    expect(groups.size).toBe(1);
+  });
+});
