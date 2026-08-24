@@ -22,7 +22,7 @@ import { isKnownComponentType } from './nodeGeometry';
  * bump the **major** only for a change no migration can express, since a major ahead of
  * this build is refused rather than guessed at.
  */
-export const LAYOUT_VERSION = '1.1';
+export const LAYOUT_VERSION = '1.2';
 
 /** What a layout file looks like on disk. `metadata` is informational only. */
 interface LayoutFile {
@@ -119,6 +119,9 @@ interface Migration {
  * file's own version, so a 1.0 file gets all of them and a current file gets none.
  */
 const MIGRATIONS: Migration[] = [
+  // 1.2 added region and note nodes. Nothing to migrate — an older file simply has none —
+  // but the version moves so that a 1.2 file opened by a 1.1-era build is refused with a
+  // clear message instead of quietly dropping the annotations.
   {
     to: '1.1',
     node(data, notes) {

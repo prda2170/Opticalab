@@ -140,6 +140,13 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   Segment coordinates stay physically true — `lengthMm`, waist positions and hit
   points are unaffected. **Renderers must draw via `drawnEndpoints(seg)`**, never
   the raw coordinates, or the two views will disagree.
+- **Annotations are nodes.** Regions and text notes are xyflow nodes of type `region`/`note`,
+  listed in `NON_OPTICAL_NODE_TYPES` and filtered out of the trace by `autoRoute` itself. That
+  is not a shortcut — it is what buys drag, resize (`NodeResizer`), selection, delete, undo,
+  copy/paste, the layout file and session restore without a line of new plumbing. `region` is
+  also the first node type whose **size is per instance**: `sizeOf(node)` prefers `data.w/h`
+  and falls back to the per-type table, and every caller that walks all the nodes goes through
+  it.
 - **Where a label sits is geometry, not styling.** `placeLabels` (`physics/labelPlacement.ts`)
   runs after fanning and publishes `RouteResult.labelSides`: node id → the direction its name
   should sit from its centre, chosen so the text clears every beam, every component, every
@@ -499,6 +506,56 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-23 — highlight regions and text notes
+
+The figure tab now has the one thing a figure needs that a bench editor does not: a way to say
+*this part*, and what about it.
+
+**Two new node types**, `region` and `note`, on the existing non-optical path. `autoRoute`
+filters them itself now rather than trusting the caller, so a region laid across a beam is
+incapable of blocking it. Everything else came free from being nodes: dragging, resizing via
+`NodeResizer`, selection, Delete, undo/redo, copy/paste between documents, saving, session
+restore. Both are visible in *both* tabs — they are part of the layout, not a view of it — and
+the tools that create them live in the figure toolbar.
+
+**A region is a wash, not a box you fight.** Dashed border, 8% fill by default, rectangle or
+ellipse, optional caption in the top-left corner where it cannot cover an optic. It sits at
+`zIndex: -1`, behind the bench; notes sit at 20, above the beams, because text has to stay
+readable. The fill has `pointerEvents: none` and the border is a 10 px grab band, so clicking
+an optic *inside* a region selects the optic.
+
+**Per-instance size is new.** Every node until now was one size per type, and `getNodeGeometry`
+was the whole story. A region is whatever you dragged it out to be, so `sizeOf(node)` prefers
+`data.w/h`, ignores a nonsense value rather than collapsing the node, and is what the figure
+bounds use.
+
+**Notes take a small markup, deliberately not LaTeX** (`utils/richText.ts`): `\lambda`-style
+names for Greek, arrows, relations and the AMO constants, plus `^{...}`/`_{...}` scripts, over
+multiple lines. `Δ = 2π×80 MHz` and `⁸⁷Rb F=2 → F′=3` are what a caption actually needs. The
+reason it is not TeX is the export: MathJax's SVG output is ~1 MB, and the small engines
+(KaTeX, MathML) render to HTML, which cannot go into vector art. A parse into runs of plain
+text can go anywhere — HTML `<sup>` on the canvas, SVG `<tspan>` in the figure — from one
+`parseRich` call. An unknown `
+ame` is left as typed, so a typo shows itself.
+
+**Two SVG text traps, both hit.** Multi-line text with a relative `dy` per line accumulates
+down the whole `<text>`, so one superscript on line 1 shifts every line after it and a
+three-line note draws itself in a heap. And a `dy` *inside* a tspan that carries its own `y` is
+ignored, which flattened the scripts. Both fixed by computing absolute baselines per run —
+line baseline ± the script rise — with `x` only on each line's first run.
+
+**Layout format 1.2.** No migration needed (an older file simply has no annotations), but the
+version moves so a 1.2 file opened by a 1.1-era build is refused with a clear message instead
+of quietly dropping them. The properties panel hides the optic fields — aperture, lattice
+angle, name label — for an annotation, since none of them mean anything there.
+
+21 tests added (`__tests__/annotationNodes.test.ts`): both types staying out of the trace even
+when handed to it directly, no snapping, no name label from the placement pass, `sizeOf`'s
+three cases, the loader knowing the types, a round-trip through the layout file, an old file
+still loading, moving or recolouring one counting as unsaved work, and the markup — symbols,
+unknown names, escapes, braced and bare scripts, symbols inside scripts, blank lines, run
+merging. **515 tests total.**
 
 ### 2026-08-23 — the figure is the canvas now
 

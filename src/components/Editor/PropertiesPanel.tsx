@@ -9,6 +9,8 @@ import { formatLength, formatSpot } from '../../physics/scale';
 import { formatDetuning } from '../../physics/wavelength';
 import { detectorVolts, formatVoltage, incidentPower, detectorBeat } from '../../physics/detector';
 import { getNodeIcon } from '../Nodes/NodeIcons';
+import { ANNOTATION_COLOURS } from '../../utils/annotationStyle';
+import { ANNOTATION_NODE_TYPES } from '../../types/components';
 import { angleStepFor, SURFACE_AT_45 } from '../../utils/nodeGeometry';
 import { norm360, snapAngle } from '../../physics/geometry';
 
@@ -535,9 +537,75 @@ function renderFields(data: OpticalNodeData, update: (p: Partial<OpticalNodeData
         spot size will.
       </Hint>
     </>;
+    case 'region': return <>
+      <Row label="Caption"><Inp type="text" value={data.caption ?? ''} placeholder="none"
+        onChange={e => u({ caption: e.target.value })} /></Row>
+      <Row label="Shape">
+        <Sel value={data.shape} onChange={e => u({ shape: e.target.value as 'rect' | 'ellipse' })}>
+          <option value="rect">Rectangle</option>
+          <option value="ellipse">Ellipse</option>
+        </Sel>
+      </Row>
+      <Row label="Colour"><Swatches value={data.colour} onChange={c => u({ colour: c })} /></Row>
+      <Row label="Wash" unit="%">
+        <Num value={Math.round(data.fillOpacity * 100)} onChange={v => u({ fillOpacity: v / 100 })}
+          min={0} max={60} step={2} />
+      </Row>
+      <Row label="Width" unit="px"><Num value={Math.round(data.w)} onChange={v => u({ w: v })} min={48} step={10} /></Row>
+      <Row label="Height" unit="px"><Num value={Math.round(data.h)} onChange={v => u({ h: v })} min={48} step={10} /></Row>
+      <Hint>
+        Not an optic — a wash behind the bench for saying which part of it a caption is
+        about. Drag it by its border so the components inside stay clickable, and resize it
+        from the handles when it is selected.
+      </Hint>
+    </>;
+    case 'note': return <>
+      <Row label="Text">
+        <textarea
+          value={data.text}
+          onChange={e => u({ text: e.target.value })}
+          rows={3}
+          className="w-full px-1.5 py-1 rounded text-xs"
+          style={{ background: 'transparent', border: '1px solid #94a3b855', color: 'inherit', resize: 'vertical' }}
+        />
+      </Row>
+      <Row label="Size" unit="px"><Num value={data.fontSize} onChange={v => u({ fontSize: v })} min={6} max={48} step={1} /></Row>
+      <Row label="Colour"><Swatches value={data.colour} onChange={c => u({ colour: c })} /></Row>
+      <Row label="Align">
+        <Sel value={data.align} onChange={e => u({ align: e.target.value as 'left' | 'center' })}>
+          <option value="left">Left</option>
+          <option value="center">Centre</option>
+        </Sel>
+      </Row>
+      <Row label="Wrap width" unit="px"><Num value={Math.round(data.w)} onChange={v => u({ w: v })} min={40} step={10} /></Row>
+      <Hint>
+        Takes a small markup, not LaTeX: {'\\lambda'}, {'\\Delta'}, {'\\times'} and the rest
+        of the Greek and symbol names, plus {'^{...}'} and {'_{...}'} for scripts. It renders to
+        plain characters, which is what lets the figure export as vector text — a real TeX
+        engine could not.
+      </Hint>
+    </>;
     default: return <Hint>No configurable properties.</Hint>;
   }
 }
+
+/** Colour picker for annotations: the fixed palette, because a figure wants few colours. */
+const Swatches: React.FC<{ value: string; onChange: (c: string) => void }> = ({ value, onChange }) => (
+  <div className="flex gap-1">
+    {ANNOTATION_COLOURS.map(c => (
+      <button
+        key={c}
+        onClick={() => onChange(c)}
+        title={c}
+        style={{
+          width: 16, height: 16, borderRadius: 4, background: c,
+          border: value.toLowerCase() === c.toLowerCase() ? '2px solid #e2e8f0' : '1px solid #64748b55',
+          cursor: 'pointer',
+        }}
+      />
+    ))}
+  </div>
+);
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -566,6 +634,7 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const data     = node.data;
+  const isAnnotation = ANNOTATION_NODE_TYPES.has(node?.type ?? '');
   const catColor = CATEGORY_COLORS[data.category];
   // Beam arriving at this component, keyed by node id (the trace publishes both
   // an edge-keyed and a node-keyed map). `beam` is the strongest arrival, which is what
@@ -640,29 +709,33 @@ export const PropertiesPanel: React.FC = () => {
           <Inp type="text" value={data.name} onChange={e => updateNodeData(node.id, { name: e.target.value })} />
         </Row>
 
-        {/* Aperture */}
-        <Row label="Aperture" unit="mm">
-          <Inp type="number" value={data.aperture ?? ''} placeholder="—"
-            onChange={e => updateNodeData(node.id, { aperture: parseFloat(e.target.value) || undefined })} />
-        </Row>
+        {/* An annotation is not on the beam path: it has no aperture, no orientation on the
+            15° lattice and no name label to show. Its own fields are the whole story. */}
+        {!isAnnotation && <>
+          {/* Aperture */}
+          <Row label="Aperture" unit="mm">
+            <Inp type="number" value={data.aperture ?? ''} placeholder="—"
+              onChange={e => updateNodeData(node.id, { aperture: parseFloat(e.target.value) || undefined })} />
+          </Row>
 
-        <Toggle
-          checked={data.showLabel === true}
-          onChange={v => updateNodeData(node.id, { showLabel: v })}
-          label="Show label"
-        />
-
-        {/* Angle. One control for everything, stepping on the component's own grain:
-            7.5° for a mirror-like surface, 15° for a body lying along the beam. The
-            quick buttons cover the four orientations that used to be the only choices. */}
-        <Row label="Angle" unit="°">
-          <AngleControl
-            value={norm360(data.rotation ?? 0)}
-            step={angleStepFor(data.type)}
-            surface={SURFACE_AT_45.has(data.type)}
-            onChange={deg => updateNodeData(node.id, { rotation: deg })}
+          <Toggle
+            checked={data.showLabel === true}
+            onChange={v => updateNodeData(node.id, { showLabel: v })}
+            label="Show label"
           />
-        </Row>
+
+          {/* Angle. One control for everything, stepping on the component's own grain:
+              7.5° for a mirror-like surface, 15° for a body lying along the beam. The
+              quick buttons cover the four orientations that used to be the only choices. */}
+          <Row label="Angle" unit="°">
+            <AngleControl
+              value={norm360(data.rotation ?? 0)}
+              step={angleStepFor(data.type)}
+              surface={SURFACE_AT_45.has(data.type)}
+              onChange={deg => updateNodeData(node.id, { rotation: deg })}
+            />
+          </Row>
+        </>}
 
         <Divider />
 

@@ -103,6 +103,11 @@ const GEOMETRIES: Partial<Record<OpticalNodeData['type'], NodeGeometry>> = {
   // ── Utilities ─────────────────────────────────────────────────────────────
   // Just the probe circle; its readout is drawn outside the box (overflow visible).
   power_probe:       { width: 18, height: 18, symbolType: 'symbol' },
+
+  // Annotations. These are the defaults a fresh one gets; the real size lives in the node's
+  // own data, because a region is whatever area you dragged it out to be. See `sizeOf`.
+  region:            { width: 220, height: 150, symbolType: 'box' },
+  note:              { width: 180, height: 40, symbolType: 'box' },
 };
 
 const FALLBACK: NodeGeometry = { width: 60, height: 36, symbolType: 'box' };
@@ -221,6 +226,22 @@ export function drawnHalfExtents(type: OpticalNodeData['type']): { halfAlong: nu
  * real answers `false`. Used when loading a saved layout, to drop nodes the app can no
  * longer draw or trace rather than rendering them as mystery boxes.
  */
+/**
+ * The size this node occupies, honouring a per-instance `w`/`h` where the type allows one.
+ *
+ * Optics are one size per type — a PBS cube is a PBS cube — and `getNodeGeometry` is the
+ * right answer for them. Annotations are whatever the user dragged them out to be, and every
+ * caller that walks *all* the nodes (figure bounds, label obstacles) needs to know that.
+ */
+export function sizeOf(node: { data?: { type?: string; w?: unknown; h?: unknown; rotation?: number } }): { width: number; height: number } {
+  const d = node.data ?? {};
+  const g = getNodeGeometry((d.type ?? 'optical') as OpticalNodeData['type'], d.rotation ?? 0);
+  return {
+    width: typeof d.w === 'number' && d.w > 0 ? d.w : g.width,
+    height: typeof d.h === 'number' && d.h > 0 ? d.h : g.height,
+  };
+}
+
 export function isKnownComponentType(type: string): boolean {
   return Object.prototype.hasOwnProperty.call(GEOMETRIES, type);
 }

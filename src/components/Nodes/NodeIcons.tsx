@@ -584,6 +584,22 @@ export const PowerProbeIcon: React.FC<IconProps> = ({ size = 24, color = 'curren
  * palette that a previously saved layout still refers to. Deliberately plain, so it
  * reads as "unknown" rather than as a real optic.
  */
+/** Palette glyph for a highlight region: a dashed frame around nothing in particular. */
+export const RegionIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <rect x="3" y="5" width="18" height="14" rx="2.5" strokeDasharray="4,3"
+      fill={color} fillOpacity="0.1"/>
+  </svg>
+);
+
+/** Palette glyph for a text note. */
+export const NoteIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6">
+    <path d="M5 6h14" strokeLinecap="round"/>
+    <path d="M12 6v13" strokeLinecap="round"/>
+  </svg>
+);
+
 export const UnknownComponentIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
     <rect x="4" y="4" width="16" height="16" rx="2" fill={color} fillOpacity="0.07" strokeDasharray="3,2"/>
@@ -646,6 +662,8 @@ export function getNodeIcon(
     case 'reference_cavity':  return <CavityIcon size={size} color={color} />;
     case 'delay_line':        return <DelayLineIcon size={size} color={color} />;
     case 'power_probe':       return <PowerProbeIcon size={size} color={color} />;
+    case 'region':            return <RegionIcon size={size} color={color} />;
+    case 'note':              return <NoteIcon size={size} color={color} />;
     case 'vapor_cell':        return <VaporCellIcon size={size} color={color}
                                        wedge={(data as { windowAngle?: number } | undefined)?.windowAngle} />;
     default:                  return <UnknownComponentIcon size={size} color={color} />;

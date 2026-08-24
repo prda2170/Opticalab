@@ -245,6 +245,27 @@ export const PALETTE: PaletteEntry[] = [
     nodeType: 'power_probe',
     defaultData: { name: 'P', category: 'utility', type: 'power_probe', labelDx: 34, labelDy: -30 },
   },
+  {
+    label: 'Region',
+    type: 'region',
+    category: 'utility',
+    nodeType: 'region',
+    defaultData: {
+      name: 'Region', category: 'utility', type: 'region',
+      w: 220, h: 150, shape: 'rect', colour: '#3b82f6', fillOpacity: 0.08,
+      caption: 'Region',
+    },
+  },
+  {
+    label: 'Text Note',
+    type: 'note',
+    category: 'utility',
+    nodeType: 'note',
+    defaultData: {
+      name: 'Note', category: 'utility', type: 'note',
+      text: 'Note', fontSize: 12, colour: '#3b82f6', align: 'left', w: 180,
+    },
+  },
 ];
 
 export const CATEGORY_LABELS: Record<string, string> = {

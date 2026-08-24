@@ -395,6 +395,49 @@ export interface PowerProbeData extends BaseNodeData {
   showSpot?: boolean;
 }
 
+// ─── Annotation ──────────────────────────────────────────────────────────────
+
+/**
+ * A highlighted area of the bench: "cooling arm", "double-pass AOM", "in vacuum".
+ *
+ * **Not an optic.** Filtered out of the trace (see NON_OPTICAL_NODE_TYPES), so it neither
+ * blocks, bends nor attenuates anything, and the router never snaps it to a beam. It is a
+ * wash of colour behind the layout with a caption, and it exists so a figure can say which
+ * part of a crowded bench a paragraph is talking about.
+ *
+ * First node type whose **size is per instance** rather than per type — `sizeOf` prefers
+ * `w`/`h` here and falls back to the geometry table for optics.
+ */
+export interface RegionData extends BaseNodeData {
+  type: 'region';
+  /** Size in canvas px. */
+  w: number;
+  h: number;
+  shape: 'rect' | 'ellipse';
+  /** Border colour; the wash is the same colour at `fillOpacity`. */
+  colour: string;
+  fillOpacity: number;
+  /** Drawn inside the top-left corner, where it cannot cover the optics. */
+  caption?: string;
+}
+
+/**
+ * Free text on the bench — a caption, a detuning, a note to the reader.
+ *
+ * Also not an optic. The text takes the small markup in `utils/richText`: `\lambda`-style
+ * names, `^{}` and `_{}` scripts. That is deliberately not LaTeX: a real TeX engine cannot
+ * render into the vector export, and a figure caption does not need one.
+ */
+export interface NoteData extends BaseNodeData {
+  type: 'note';
+  text: string;
+  fontSize: number;
+  colour: string;
+  align: 'left' | 'center';
+  /** Wrap width in px. The note is as tall as its content. */
+  w: number;
+}
+
 // ─── Union type ───────────────────────────────────────────────────────────────
 export type OpticalNodeData =
   | LaserSourceData
@@ -433,10 +476,22 @@ export type OpticalNodeData =
   | ReferenceCavityData
   | DelayLineData
   | VaporCellData
-  | PowerProbeData;
+  | PowerProbeData
+  | RegionData
+  | NoteData;
 
 /** xyflow node types that are annotations, not optics — kept out of the beam trace. */
-export const NON_OPTICAL_NODE_TYPES = new Set(['beam_endpoint', 'power_probe']);
+export const NON_OPTICAL_NODE_TYPES = new Set([
+  'beam_endpoint', 'power_probe', 'region', 'note',
+]);
+
+/** Node types that annotate the figure rather than describing the bench. */
+export const ANNOTATION_NODE_TYPES = new Set(['region', 'note']);
+
+/** True for a region or a note — draggable in the figure tab, invisible to the tracer. */
+export function isAnnotationNode(node: { type?: string }): boolean {
+  return ANNOTATION_NODE_TYPES.has(node.type ?? '');
+}
 
 /** True for a canvas node the beam tracer should consider. */
 export function isOpticalNode(node: { type?: string }): boolean {

@@ -26,10 +26,12 @@ import { useWorkspace } from '../../store/workspaceStore';
 import OpticalNode from '../Nodes/OpticalNode';
 import BeamEndpointNode from '../Nodes/BeamEndpointNode';
 import PowerProbeNode from '../Nodes/PowerProbeNode';
+import RegionNode from '../Nodes/RegionNode';
+import NoteNode from '../Nodes/NoteNode';
 import BeamEdge from '../Edges/BeamEdge';
 import type { OpticalNodeData, BeamEdgeData } from '../../types/components';
 import type { PaletteEntry } from '../../types/components';
-import { isOpticalNode } from '../../types/components';
+import { isOpticalNode, isAnnotationNode } from '../../types/components';
 import { getNodeGeometry } from '../../utils/nodeGeometry';
 import { probeSnaps } from '../../physics/probe';
 import { autoRoute } from '../../physics/autoRoute';
@@ -42,7 +44,16 @@ const nodeTypes: NodeTypes = {
   optical: OpticalNode,
   beam_endpoint: BeamEndpointNode,
   power_probe: PowerProbeNode,
+  region: RegionNode,
+  note: NoteNode,
 };
+
+/**
+ * Where a node sits in the stack. Regions are a wash *behind* the bench; notes are text that
+ * has to stay readable, so they go above the beams (the edge layer is at 10). Optics keep
+ * xyflow's default, which is where they have always been.
+ */
+const Z_ORDER: Record<string, number> = { region: -1, note: 20 };
 const edgeTypes: EdgeTypes = { beam: BeamEdge };
 
 let nodeIdCounter = 1;
@@ -83,8 +94,11 @@ export const EditorCanvas: React.FC<{ mode?: CanvasMode }> = ({ mode = 'edit' })
     const state = layoutApi.getState();
     const loaded = (state.nodes as AppNode[]).map(n => ({
       ...n,
-      // The figure pins the optics: it is a view of the bench, not a second place to move it.
-      draggable: !(n.data as OpticalNodeData).locked && !isFigure,
+      // The figure pins the optics — it is a view of the bench, not a second place to move
+      // it — but regions and notes are exactly what you are there to place, so they stay
+      // free in both tabs.
+      draggable: !(n.data as OpticalNodeData).locked && (!isFigure || isAnnotationNode(n)),
+      zIndex: Z_ORDER[n.type ?? ''] ?? undefined,
     }));
     // Preserve existing phantom endpoint nodes — they are not in Zustand but must
     // survive canvasVersion bumps (e.g. lock/unlock) so beams don't flash invisible.

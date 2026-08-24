@@ -18,9 +18,9 @@ import { useWorkspace } from '../../store/workspaceStore';
 import { wavelengthToRGB, wavelengthDashArray } from '../../utils/colormap';
 import { getNodeIcon } from '../Nodes/NodeIcons';
 import { iconDimensions } from '../../utils/iconMetrics';
-import { getNodeGeometry, artworkOf } from '../../utils/nodeGeometry';
+import { getNodeGeometry, artworkOf, sizeOf } from '../../utils/nodeGeometry';
 import { CATEGORY_COLORS } from '../../types/components';
-import type { OpticalNodeData, PowerProbeData } from '../../types/components';
+import type { OpticalNodeData, PowerProbeData, RegionData, NoteData } from '../../types/components';
 import type { BeamSegment } from '../../types/beam';
 import { formatSpot } from '../../physics/scale';
 import { formatDetuning } from '../../physics/wavelength';
@@ -34,6 +34,8 @@ import {
   CANVAS_BEAM, CANVAS_BOX, CANVAS_GRID, CANVAS_LABEL,
   canvasBg, gridColour, boxFill, labelColour,
 } from '../../utils/canvasStyle';
+import { REGION_STYLE, NOTE_STYLE, withAlpha } from '../../utils/annotationStyle';
+import { parseRich, SCRIPT_SCALE, SCRIPT_RISE } from '../../utils/richText';
 
 /** Padding around the layout, px. */
 const FIGURE_PAD = 60;
@@ -143,6 +145,91 @@ const Probe: React.FC<{
         </text>
       ))}
     </g>
+  );
+};
+
+/**
+ * A highlight region: the wash and its caption, drawn under everything else.
+ *
+ * `RegionNode` draws the same thing in CSS. Both take their border width, dash and radius
+ * from `annotationStyle`, so a figure exports as the region looked.
+ */
+const Region: React.FC<{ node: Node<OpticalNodeData> }> = ({ node }) => {
+  const data = node.data as RegionData;
+  const { width: w, height: h } = sizeOf(node);
+  const x = node.position.x;
+  const y = node.position.y;
+  const common = {
+    fill: withAlpha(data.colour, data.fillOpacity),
+    stroke: data.colour,
+    strokeWidth: REGION_STYLE.borderWidth,
+    strokeDasharray: REGION_STYLE.dashArray,
+  };
+  return (
+    <g>
+      {data.shape === 'ellipse'
+        ? <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...common} />
+        : <rect x={x} y={y} width={w} height={h} rx={REGION_STYLE.radius} {...common} />}
+      {data.caption && (
+        <text
+          x={x + REGION_STYLE.captionInset}
+          y={y + REGION_STYLE.captionInset + REGION_STYLE.captionSize * 0.85}
+          fontSize={REGION_STYLE.captionSize} fill={data.colour}
+          fontFamily="system-ui, sans-serif" fontWeight={600} letterSpacing={0.2}
+        >
+          {data.caption}
+        </text>
+      )}
+    </g>
+  );
+};
+
+/**
+ * A text note. The markup is parsed by `utils/richText`, the same call `NoteNode` makes, so
+ * `\Delta = 2\pi	imes80` MHz lands identically in both.
+ *
+ * Scripts are `<tspan>` with a baseline shift rather than `baseline-shift`, which Illustrator
+ * and rasterisers disagree about.
+ */
+const Note: React.FC<{ node: Node<OpticalNodeData> }> = ({ node }) => {
+  const data = node.data as NoteData;
+  const lines = parseRich(data.text);
+  const size = data.fontSize;
+  const step = size * NOTE_STYLE.lineHeight;
+  const w = sizeOf(node).width;
+  const anchor = data.align === 'center' ? 'middle' : 'start';
+  const x = node.position.x + NOTE_STYLE.pad + (data.align === 'center' ? w / 2 - NOTE_STYLE.pad : 0);
+
+  // Each line gets an **absolute** baseline. A relative `dy` per line looks equivalent and
+  // is not: SVG accumulates `dy` down the whole `<text>`, so a superscript on line 1 shifts
+  // every line after it, and a three-line note draws itself in a heap.
+  const top = node.position.y + NOTE_STYLE.pad + size * 0.85;
+
+  return (
+    <text
+      x={x} y={top}
+      textAnchor={anchor} fill={data.colour}
+      fontFamily="system-ui, sans-serif" fontSize={size} fontWeight={500}
+    >
+      {lines.map((runs, li) => {
+        const base = top + li * step;
+        return runs.map((run, ri) => (
+          <tspan
+            key={`${li}-${ri}`}
+            // Absolute on both axes for the first run of each line, so nothing accumulates;
+            // later runs take only a baseline and flow on horizontally. A `dy` *inside* a
+            // tspan that carries its own `y` is ignored, which is how the scripts came out
+            // flat — hence the arithmetic here rather than a relative shift.
+            x={ri === 0 ? x : undefined}
+            y={base + (run.script === 'sup' ? -size * SCRIPT_RISE
+              : run.script === 'sub' ? size * SCRIPT_RISE * 0.6 : 0)}
+            fontSize={run.script === 'normal' ? undefined : size * SCRIPT_SCALE}
+          >
+            {run.text}
+          </tspan>
+        ));
+      })}
+    </text>
   );
 };
 
@@ -278,8 +365,8 @@ export const FigureSVG = React.forwardRef<SVGSVGElement>((_props, ref) => {
     maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
   };
   for (const n of nodes) {
-    const d = n.data as OpticalNodeData;
-    const g = getNodeGeometry(d.type, d.rotation ?? 0);
+    // `sizeOf`, not the geometry table: a region is whatever size it was dragged to.
+    const g = sizeOf(n as Node<OpticalNodeData>);
     grow(n.position.x, n.position.y);
     grow(n.position.x + g.width, n.position.y + g.height);
   }
@@ -324,8 +411,13 @@ export const FigureSVG = React.forwardRef<SVGSVGElement>((_props, ref) => {
       <rect x={box.x} y={box.y} width={box.w} height={box.h} fill={bg} />
       <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="url(#fig-grid)" />
 
+      {/* Regions first: a wash behind the bench, exactly as the canvas stacks them. */}
+      {nodes.filter(n => n.type === 'region').map(node => (
+        <Region key={node.id} node={node as Node<OpticalNodeData>} />
+      ))}
+
       {/* Components under the beams, as on the canvas, where auto-edges are raised. */}
-      {nodes.map(node => node.type === 'power_probe' ? (
+      {nodes.filter(n => n.type !== 'region' && n.type !== 'note').map(node => node.type === 'power_probe' ? (
         <Probe key={node.id} node={node as Node<OpticalNodeData>}
           segments={segments} dark={dark} labelScale={labelScale} />
       ) : (
@@ -341,6 +433,11 @@ export const FigureSVG = React.forwardRef<SVGSVGElement>((_props, ref) => {
       </g>
       {showBeamLabels && segments.filter(s => !s.free).map(seg => (
         <BeamLabel key={`lbl-${seg.id}`} seg={seg} />
+      ))}
+
+      {/* Notes last, so text stays readable over a beam — the canvas raises them too. */}
+      {nodes.filter(n => n.type === 'note').map(node => (
+        <Note key={node.id} node={node as Node<OpticalNodeData>} />
       ))}
     </svg>
   );

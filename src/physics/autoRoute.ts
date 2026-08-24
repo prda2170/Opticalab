@@ -11,6 +11,7 @@ import type { Node, Edge } from '@xyflow/react';
 import type { OpticalNodeData, BeamEdgeData } from '../types/components';
 import type { BeamSegment, BeamState } from '../types/beam';
 import { getNodeGeometry, artworkOf, bodyBox, SURFACE_AT_45 } from '../utils/nodeGeometry';
+import { isOpticalNode } from '../types/components';
 import { advanceBeam, componentOutputs, emitterBeam, isEmitter, outputPortFor, MIN_POWER_MW, type PortKind } from './propagate';
 import { mirrorReflect, perpOf, dirKey, rotateBy, boxHalfExtent, angleOf, snapAngle, type Vec2, type Pt } from './geometry';
 import { mmToPx, pxToMm } from './scale';
@@ -296,9 +297,14 @@ function uniqueId(base: string, used: Set<string>): string {
  * @param userEdges Edges drawn manually by the user (no 'auto_' prefix).
  */
 export function autoRoute(
-  nodes: Node<OpticalNodeData>[],
+  allNodes: Node<OpticalNodeData>[],
   userEdges: Edge[],
 ): RouteResult {
+  // Annotations — probes, regions, notes, phantom endpoints — are not part of the bench.
+  // The canvas filters them before calling, but the filter belongs here too: a region laid
+  // over a beam path must be incapable of blocking it, whoever does the calling.
+  const nodes = allNodes.filter(isOpticalNode);
+
   const result: RouteResult = {
     autoEdges: [], segments: [], beams: new Map(), nodeBeams: new Map(),
     nodeArrivals: new Map(),
