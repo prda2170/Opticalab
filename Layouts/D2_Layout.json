@@ -1,7 +1,7 @@
 {
   "version": "1.2",
   "metadata": {
-    "created": "2026-08-24T16:38:41.148Z",
+    "created": "2026-08-25T00:48:32.879Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -9,7 +9,7 @@
       "id": "node_1787473616275_1",
       "type": "optical",
       "position": {
-        "x": 170.4675630064882,
+        "x": 145.06776037842806,
         "y": 186.54936840923904
       },
       "data": {
@@ -29,11 +29,11 @@
       "id": "node_1787473668538_2",
       "type": "optical",
       "position": {
-        "x": 265.10691429722664,
-        "y": 196.71571202523745
+        "x": 240.6142474773115,
+        "y": 197.54936840923904
       },
       "data": {
-        "name": "IOT-5-780-VLP",
+        "name": "IO-5-780-HP",
         "category": "conditioning",
         "type": "isolator",
         "transmission": 95,
@@ -106,8 +106,8 @@
       "id": "node_1787475187331_4",
       "type": "optical",
       "position": {
-        "x": 336.36994427279524,
-        "y": 182.75466665996498
+        "x": 299.62505982248877,
+        "y": 184.45650421738404
       },
       "data": {
         "name": "λ/2",
@@ -124,8 +124,8 @@
       "id": "node_1787475197760_5",
       "type": "optical",
       "position": {
-        "x": 358.1261726530744,
-        "y": 196.70870925410074
+        "x": 319.89855908708734,
+        "y": 197.55189025029736
       },
       "data": {
         "name": "PBS",
@@ -135,7 +135,7 @@
           "dx": 1,
           "dy": 0
         },
-        "rotation": 0,
+        "rotation": 90,
         "showLabel": false
       }
     },
@@ -143,7 +143,7 @@
       "id": "node_1787476256763_24",
       "type": "optical",
       "position": {
-        "x": 558.7778474532531,
+        "x": 558.020755813965,
         "y": 178.9760381654301
       },
       "data": {
@@ -201,8 +201,8 @@
       "id": "node_1787476392976_27",
       "type": "optical",
       "position": {
-        "x": 437.66273555317133,
-        "y": 238.74450249674612
+        "x": 436.90564391388324,
+        "y": 278.8703593790135
       },
       "data": {
         "name": "M",
@@ -220,8 +220,8 @@
       "id": "node_1787476412751_28",
       "type": "optical",
       "position": {
-        "x": 558.7778474532531,
-        "y": 238.74450249674612
+        "x": 558.020755813965,
+        "y": 278.8703593790135
       },
       "data": {
         "name": "M",
@@ -235,11 +235,49 @@
       }
     },
     {
-      "id": "node_1787589484161_1",
+      "id": "node_1787609552794_1",
       "type": "optical",
       "position": {
-        "x": 362.1261726530744,
-        "y": 93.35717832199522
+        "x": 345.4152623701655,
+        "y": 365.9005415457158
+      },
+      "data": {
+        "name": "λ/2",
+        "category": "conditioning",
+        "type": "hwp",
+        "fastAxisAngle": 22.5,
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787609561743_2",
+      "type": "optical",
+      "position": {
+        "x": 359.4152623701655,
+        "y": 385.3473742098303
+      },
+      "data": {
+        "name": "PBS",
+        "category": "steering",
+        "type": "pbs",
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787609589824_3",
+      "type": "optical",
+      "position": {
+        "x": 231.10973795678257,
+        "y": 389.3473742098303
       },
       "data": {
         "name": "EOM",
@@ -249,12 +287,470 @@
         "transmission": 90,
         "rfFrequency": 9.2,
         "rfPower": 30,
+        "rotation": 180,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "showLabel": true,
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787609595651_4",
+      "type": "optical",
+      "position": {
+        "x": 359.4152623701655,
+        "y": 446.25055760948084
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787609602661_5",
+      "type": "optical",
+      "position": {
+        "x": 216.2261422487926,
+        "y": 446.25055760948084
+      },
+      "data": {
+        "name": "Rb cell",
+        "category": "coldatom",
+        "type": "vapor_cell",
+        "species": "Rb",
+        "length": 75,
+        "temperature": 25,
+        "windowAngle": 8,
+        "bufferGas": "",
+        "rotation": 180,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "showLabel": true,
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787609661877_6",
+      "type": "optical",
+      "position": {
+        "x": 117.38722421344443,
+        "y": 446.25055760948084
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "rotation": 90,
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787609677962_7",
+      "type": "optical",
+      "position": {
+        "x": 120.76797013400409,
+        "y": 386.19055520602694
+      },
+      "data": {
+        "name": "PBS",
+        "category": "steering",
+        "type": "pbs",
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787609789141_8",
+      "type": "optical",
+      "position": {
+        "x": 116.55206515302103,
+        "y": 340.8411646440371
+      },
+      "data": {
+        "name": "PD",
+        "category": "detection",
+        "type": "photodiode",
+        "bandwidth": 100,
+        "signalFactor": 1,
         "rotation": 270,
         "beamIncomingDir": {
           "dx": 0,
           "dy": -1
         },
+        "showLabel": true,
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787609905677_9",
+      "type": "optical",
+      "position": {
+        "x": 399.0747301692988,
+        "y": 382.15771774492583
+      },
+      "data": {
+        "name": "BB",
+        "category": "conditioning",
+        "type": "beam_block",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "groupId": "grp_1787610057858_2"
+      }
+    },
+    {
+      "id": "node_1787610004077_10",
+      "type": "optical",
+      "position": {
+        "x": 456.4787938416811,
+        "y": 357.98843420279934
+      },
+      "data": {
+        "name": "miniTA",
+        "category": "source",
+        "type": "fiber_amplifier",
+        "wavelength": 1064,
+        "outputPower": 2000,
+        "polarization": "H",
+        "waist": 1200,
+        "mSquared": 1.05,
+        "current": 3000,
+        "fiberInputId": "node_1787475150626_2",
         "showLabel": true
+      }
+    },
+    {
+      "id": "paste_1787610071106_1",
+      "type": "optical",
+      "position": {
+        "x": 536.4265453742029,
+        "y": 357.0812983946543
+      },
+      "data": {
+        "name": "IOT-5-780-VLP",
+        "category": "conditioning",
+        "type": "isolator",
+        "transmission": 95,
+        "isolation": 40,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "showLabel": true,
+        "locked": false
+      }
+    },
+    {
+      "id": "node_1787610108267_11",
+      "type": "optical",
+      "position": {
+        "x": 615.2275602670568,
+        "y": 343.0812983946543
+      },
+      "data": {
+        "name": "λ/2",
+        "category": "conditioning",
+        "type": "hwp",
+        "fastAxisAngle": 30,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "node_1787610130084_12",
+      "type": "optical",
+      "position": {
+        "x": 637.9059554706821,
+        "y": 358.8955700109443
+      },
+      "data": {
+        "name": "PBS",
+        "category": "steering",
+        "type": "pbs",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "node_1787610217886_13",
+      "type": "optical",
+      "position": {
+        "x": 637.9059554706821,
+        "y": 276.51043374305385
+      },
+      "data": {
+        "name": "AOM",
+        "category": "modulation",
+        "type": "aom",
+        "rfFrequency": 80,
+        "rfPower": 33,
+        "diffractionEfficiency": 80,
+        "transmission": 98,
+        "activeOrder": "+1",
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "showLabel": true
+      }
+    },
+    {
+      "id": "node_1787610248730_15",
+      "type": "optical",
+      "position": {
+        "x": 319.89855908708734,
+        "y": 277.2533472778938
+      },
+      "data": {
+        "name": "PBS",
+        "category": "steering",
+        "type": "pbs",
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "groupId": "grp_1787610514867_4"
+      }
+    },
+    {
+      "id": "node_1787610287634_16",
+      "type": "optical",
+      "position": {
+        "x": 221.5306195321246,
+        "y": 277.2533472778938
+      },
+      "data": {
+        "name": "AOM",
+        "category": "modulation",
+        "type": "aom",
+        "rfFrequency": 80,
+        "rfPower": 33,
+        "diffractionEfficiency": 80,
+        "transmission": 98,
+        "activeOrder": "+1",
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "groupId": "grp_1787610514867_4"
+      }
+    },
+    {
+      "id": "node_1787610312671_17",
+      "type": "optical",
+      "position": {
+        "x": 119.93140901988409,
+        "y": 277.2533472778938
+      },
+      "data": {
+        "name": "Cat-eye",
+        "category": "steering",
+        "type": "retroreflector",
+        "reflectivity": 99.5,
+        "focalLength": 100,
+        "rotation": 180,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "groupId": "grp_1787610514867_4"
+      }
+    },
+    {
+      "id": "node_1787610318106_18",
+      "type": "optical",
+      "position": {
+        "x": 161.65965619455434,
+        "y": 263.2533472778938
+      },
+      "data": {
+        "name": "λ/4",
+        "category": "conditioning",
+        "type": "qwp",
+        "fastAxisAngle": 45,
+        "rotation": 180,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "showLabel": false,
+        "groupId": "grp_1787610514867_4"
+      }
+    },
+    {
+      "id": "node_1787610431207_19",
+      "type": "optical",
+      "position": {
+        "x": 359.4152623701655,
+        "y": 277.2533472778938
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "rotation": 90,
+        "groupId": "grp_1787610514867_4"
+      }
+    },
+    {
+      "id": "node_1787610566925_20",
+      "type": "optical",
+      "position": {
+        "x": 636.9988196625372,
+        "y": 196.5182603529883
+      },
+      "data": {
+        "name": "Cat-eye",
+        "category": "steering",
+        "type": "retroreflector",
+        "reflectivity": 99.5,
+        "focalLength": 100,
+        "rotation": 270,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        }
+      }
+    },
+    {
+      "id": "node_1787610576362_21",
+      "type": "optical",
+      "position": {
+        "x": 623.9059554706821,
+        "y": 235.5251001032235
+      },
+      "data": {
+        "name": "λ/4",
+        "category": "conditioning",
+        "type": "qwp",
+        "fastAxisAngle": 44,
+        "rotation": 270,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        }
+      }
+    },
+    {
+      "id": "node_1787610601146_22",
+      "type": "optical",
+      "position": {
+        "x": 636.9059554706821,
+        "y": 439.8095455693245
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        }
+      }
+    },
+    {
+      "id": "node_1787610610313_23",
+      "type": "optical",
+      "position": {
+        "x": 556.1708685457768,
+        "y": 439.8095455693245
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "node_1787610620625_24",
+      "type": "optical",
+      "position": {
+        "x": 556.4141716670706,
+        "y": 511.9006437285724
+      },
+      "data": {
+        "name": "Pushout",
+        "category": "fiber",
+        "type": "fiber_coupler",
+        "couplingEfficiency": 80,
+        "inputNA": 0.12,
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "showLabel": true
+      }
+    },
+    {
+      "id": "node_1787618881009_1",
+      "type": "optical",
+      "position": {
+        "x": 696.3961726937159,
+        "y": 343.98843420279934
+      },
+      "data": {
+        "name": "λ/2",
+        "category": "conditioning",
+        "type": "hwp",
+        "fastAxisAngle": 0,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "node_1787618889244_2",
+      "type": "optical",
+      "position": {
+        "x": 717.6716234011407,
+        "y": 357.98843420279934
+      },
+      "data": {
+        "name": "PBS",
+        "category": "steering",
+        "type": "pbs",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
       }
     }
   ],

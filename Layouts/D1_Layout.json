@@ -1,7 +1,7 @@
 {
   "version": "1.2",
   "metadata": {
-    "created": "2026-08-24T21:45:48.703Z",
+    "created": "2026-08-24T22:11:37.388Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -828,7 +828,8 @@
         "shape": "rect",
         "colour": "#3b82f6",
         "fillOpacity": 0.08,
-        "caption": "MTS Lock"
+        "caption": "MTS Lock",
+        "captionCorner": "tr"
       }
     }
   ],
