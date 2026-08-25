@@ -67,6 +67,29 @@ export function componentLanes(data: OpticalNodeData): number[] {
   }
 }
 
+/**
+ * Which way along its own axis a device's unused order leaves, as +1 or -1 in the
+ * component's **own** frame.
+ *
+ * Needed because a multi-lane component aligns to the beam's *axis*, not its direction
+ * (`autoRoute` uses `beamAngle % 180`), and deliberately so: a lane is a place on the
+ * device, so it must not flip when a beam traverses it backwards — that invariance is what
+ * lets a double-passed cell retrace its own path. The consequence is that an acousto-optic
+ * cell fed right-to-left keeps rotation 0, and anything drawn along `+x` in its own frame
+ * then points *upstream*. The dumped order leaves with the beam, so it needs this sign.
+ *
+ * Only the **along-axis** sign flips. The perpendicular lane offset must not: that is the
+ * physical side the transducer put it on.
+ *
+ * `+1` with no beam, which is what an unlit component on the palette or a fresh drop shows.
+ */
+export function laneExitSign(data: OpticalNodeData): 1 | -1 {
+  const incoming = (data as { beamIncomingDir?: Vec2 }).beamIncomingDir;
+  if (!incoming || (incoming.dx === 0 && incoming.dy === 0)) return 1;
+  const axis = bodyAxis(data.rotation ?? 0);
+  return incoming.dx * axis.dx + incoming.dy * axis.dy >= 0 ? 1 : -1;
+}
+
 /** True when a component has more than one beam axis. */
 export function hasMultipleLanes(data: OpticalNodeData): boolean {
   return componentLanes(data).length > 1;

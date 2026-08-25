@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { Node } from '@xyflow/react';
 import { componentOutputs, outputPortFor } from '../propagate';
-import { bodyAxis, componentLanes, laneNormal, ORDER_SEPARATION_PX } from '../lanes';
+import { bodyAxis, componentLanes, laneNormal, laneExitSign, ORDER_SEPARATION_PX } from '../lanes';
 import { BEAM_SNAP_DIST } from '../autoRoute';
+import { unitAt } from '../geometry';
 import { formatDetuning, opticalFrequencyHz, outputWavelength, C_LIGHT } from '../wavelength';
 import { autoRoute } from '../autoRoute';
 import type { OpticalNodeData } from '../../types/components';
@@ -427,5 +428,55 @@ describe('autoRoute — AOM', () => {
     const snap = snaps.get('AOM')!;
     expect(snap).toBeDefined();
     expect(snap.y + g.height / 2).toBeCloseTo(AXIS_Y, 6);
+  });
+});
+
+// ── Which way the dumped order leaves ─────────────────────────────────────────
+
+describe('laneExitSign', () => {
+  const cell = (over: Partial<OpticalNodeData> = {}) => ({
+    type: 'aom', name: 'A1', category: 'modulation',
+    rfFrequency: 80, diffractionEfficiency: 80, order: 1, ...over,
+  } as OpticalNodeData);
+
+  it('leaves along the body axis when the beam runs that way', () => {
+    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: { dx: 1, dy: 0 } }))).toBe(1);
+    expect(laneExitSign(cell({ rotation: 90, beamIncomingDir: { dx: 0, dy: 1 } }))).toBe(1);
+  });
+
+  it('turns round for a beam running against the body axis', () => {
+    // The bug this fixes: a multi-lane component aligns to the beam *axis*, not its
+    // direction, so a cell fed right-to-left keeps rotation 0 — and anything drawn along
+    // +x in its own frame then points back up the beam it came from.
+    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: { dx: -1, dy: 0 } }))).toBe(-1);
+    expect(laneExitSign(cell({ rotation: 90, beamIncomingDir: { dx: 0, dy: -1 } }))).toBe(-1);
+    expect(laneExitSign(cell({ rotation: 180, beamIncomingDir: { dx: 1, dy: 0 } }))).toBe(-1);
+  });
+
+  it('handles a diagonal beam by which side of square-on it falls', () => {
+    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: unitAt(30) }))).toBe(1);
+    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: unitAt(150) }))).toBe(-1);
+    // Exactly square-on is a tie; +1 keeps it deterministic.
+    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: unitAt(90) }))).toBe(1);
+  });
+
+  it('assumes forward for a component no beam has reached', () => {
+    // A fresh drop, or a palette preview: there is nothing to point away from yet.
+    expect(laneExitSign(cell({ rotation: 0 }))).toBe(1);
+    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: { dx: 0, dy: 0 } }))).toBe(1);
+  });
+
+  it('does not touch the lane offset — that side is physical', () => {
+    // Only the along-axis direction flips. The perpendicular offset is the side the
+    // transducer put the order on, and flipping it would break a double pass retracing.
+    const forward = cell({ rotation: 0, beamIncomingDir: { dx: 1, dy: 0 } });
+    const backward = cell({ rotation: 0, beamIncomingDir: { dx: -1, dy: 0 } });
+    expect(componentLanes(backward)).toEqual(componentLanes(forward));
+  });
+
+  it('follows the active order for the lane, independently of the exit direction', () => {
+    const minus = cell({ activeOrder: '-1', beamIncomingDir: { dx: -1, dy: 0 } });
+    expect(componentLanes(minus)[1]).toBeLessThan(0);
+    expect(laneExitSign(minus)).toBe(-1);
   });
 });

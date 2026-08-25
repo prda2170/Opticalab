@@ -11,7 +11,7 @@ import { labelDistance, labelHalfExtents, DEFAULT_LABEL_SIDE } from '../../physi
 import type { Vec2 } from '../../physics/geometry';
 import { detectorSignalLabel, incidentPower as incidentPowerOf } from '../../physics/detector';
 import { mirrorReflect } from '../../physics/geometry';
-import { componentLanes } from '../../physics/lanes';
+import { componentLanes, laneExitSign } from '../../physics/lanes';
 import { useLayout } from '../../store/layoutContext';
 import { useWorkspace } from '../../store/workspaceStore';
 
@@ -515,6 +515,13 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
         {isAOM && (() => {
           const laneY = artwork.height / 2 + (componentLanes(data)[1] ?? 0);
           const dumped = (data as { dumpZeroOrder?: boolean }).dumpZeroOrder !== false;
+          // The dumped order leaves *with* the beam. A cell fed right-to-left keeps its
+          // rotation (lanes align to the beam axis, not its direction), so drawing this
+          // along +x would point it back up the beam it came from.
+          const s = laneExitSign(data);
+          const face = artwork.width / 2 + s * (artwork.width / 2);
+          const inner = artwork.width / 2 + s * (artwork.width / 2 - 16);
+          const tip = artwork.width / 2 + s * (artwork.width / 2 + 12);
           return (
             <svg
               style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', overflow: 'visible' }}
@@ -524,13 +531,13 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
               <title>{dumped ? '0th order — blocked at the cell' : '0th order — routed out on the dump lane'}</title>
               {/* Peel-off: the unused order deviating inside the cell out to its lane. */}
               <line
-                x1={artwork.width - 16} y1={artwork.height / 2} x2={artwork.width} y2={laneY}
+                x1={inner} y1={artwork.height / 2} x2={face} y2={laneY}
                 stroke={catColor} strokeWidth="1" strokeOpacity="0.4"
                 strokeDasharray="2,2" strokeLinecap="round"
               />
               {/* Short stub along the lane, then the block if it is absorbed here. */}
               <line
-                x1={artwork.width} y1={laneY} x2={artwork.width + 12} y2={laneY}
+                x1={face} y1={laneY} x2={tip} y2={laneY}
                 stroke={catColor} strokeWidth="1"
                 strokeOpacity={dumped ? 0.65 : 0.3}
                 strokeDasharray={dumped ? undefined : '2,2'}
@@ -538,7 +545,7 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
               />
               {dumped && (
                 <rect
-                  x={artwork.width + 12} y={laneY - 5}
+                  x={s > 0 ? tip : tip - 4} y={laneY - 5}
                   width="4" height="10"
                   fill={catColor} fillOpacity="0.7" rx="0.5"
                 />

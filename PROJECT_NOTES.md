@@ -526,6 +526,43 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 
 ## 6. Change log
 
+### 2026-08-24 — the dumped order was pointing upstream
+
+An acousto-optic cell's blocked 0th order was drawn leaving through the **+x face of the
+component's own frame**, always. For a cell fed left-to-right that is correct and is what every
+layout had been showing; for one fed the other way it points back up the beam it came from.
+
+The cause is a deliberate decision biting from an unexpected direction. A multi-lane component
+aligns to the beam's **axis**, not its direction — `autoRoute` uses `beamAngle % 180` — because a
+lane is a place on the *device*, and it must not flip when a beam traverses it backwards. That
+invariance is what lets a double-passed cell retrace its own path. The consequence nobody
+followed through: a cell fed right-to-left keeps rotation 0, so anything the artwork draws along
+its own `+x` now points the wrong way.
+
+Found in the real layouts: of the five acousto-optic cells across D1 and D2, **two were
+backwards** — one at rotation 90 with the beam travelling up, one at rotation 0 with the beam
+travelling left. The other three had the beam running along the body axis, which is why this
+survived so long.
+
+`laneExitSign(data)` is the fix: `+1` or `-1` from `dot(beamIncomingDir, bodyAxis(rotation))`,
+defaulting to `+1` for a component no beam has reached (a fresh drop, or the palette). Both
+renderers multiply their along-axis coordinates by it — the peel-off, the stub, and the block,
+which also has to shift by its own width when it flips so it stays flush against the stub tip.
+
+**Only the along-axis sign flips.** The perpendicular lane offset is untouched, and a test pins
+that: it is the side the transducer put the order on, and flipping it would break exactly the
+double-pass retrace the `% 180` rule exists to protect.
+
+7 tests added (`aom.test.ts`): forward and reverse at 0° and 90°, rotation 180 with a forward
+beam, diagonal beams either side of square-on, the square-on tie resolving to +1, no beam at all,
+the lane offset staying put, and `-1` order keeping its negative lane while exiting backwards.
+**583 tests total.**
+
+Checked in the app with a forward and a reverse cell side by side, reading the marker geometry
+out of both renderers: forward peels out through the right face (44 → 60 in artwork coordinates,
+block at 72), reverse through the left (16 → 0, block at -16, flush against the stub), and the
+lane stays at +1 inch in both. The export renderer matches, in its own centre-relative frame.
+
 ### 2026-08-24 — a region's caption picks its corner
 
 `captionCorner` on a region: top left, top right, bottom left, bottom right, or hidden. The

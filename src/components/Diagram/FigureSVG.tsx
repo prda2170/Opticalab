@@ -25,7 +25,7 @@ import type { BeamSegment } from '../../types/beam';
 import { formatSpot } from '../../physics/scale';
 import { formatDetuning } from '../../physics/wavelength';
 import { drawnEndpoints } from '../../physics/beamLayout';
-import { componentLanes } from '../../physics/lanes';
+import { componentLanes, laneExitSign } from '../../physics/lanes';
 import { probeBeam, probeLines } from '../../physics/probe';
 import { detectorSignalLabel, incidentPower } from '../../physics/detector';
 import { labelLayout } from '../../utils/labelLayout';
@@ -300,20 +300,26 @@ const Component: React.FC<{
       {(data.type === 'aom' || data.type === 'aod') && (() => {
         const lane = componentLanes(data)[1] ?? 0;
         const dumped = (data as { dumpZeroOrder?: boolean }).dumpZeroOrder !== false;
+        // The dumped order leaves *with* the beam. A cell fed right-to-left keeps its
+        // rotation (lanes align to the beam axis, not its direction), so drawing this along
+        // +x would point it back up the beam it came from. See `laneExitSign`.
+        const s = laneExitSign(data);
         return (
           <g transform={rotation ? `rotate(${rotation})` : undefined}>
             <line
-              x1={art.width / 2 - 16} y1={0} x2={art.width / 2} y2={lane}
+              x1={s * (art.width / 2 - 16)} y1={0} x2={s * (art.width / 2)} y2={lane}
               stroke={catColor} strokeWidth={1} strokeOpacity={0.4} strokeDasharray="2,2"
             />
             <line
-              x1={art.width / 2} y1={lane} x2={art.width / 2 + 12} y2={lane}
+              x1={s * (art.width / 2)} y1={lane} x2={s * (art.width / 2 + 12)} y2={lane}
               stroke={catColor} strokeWidth={1}
               strokeOpacity={dumped ? 0.65 : 0.3}
               strokeDasharray={dumped ? undefined : '2,2'}
             />
             {dumped && (
-              <rect x={art.width / 2 + 12} y={lane - 5} width={4} height={10} rx={0.5}
+              <rect
+                x={s > 0 ? art.width / 2 + 12 : -(art.width / 2 + 12) - 4}
+                y={lane - 5} width={4} height={10} rx={0.5}
                 fill={catColor} fillOpacity={0.7} />
             )}
           </g>
