@@ -175,13 +175,15 @@ describe('unknown and removed components', () => {
   it('leaves out a component this build cannot draw, and says which', () => {
     const file = v1File([
       at('L1', laser(), 45, AXIS),
-      { id: 'CHAMBER', type: 'optical', position: { x: 300, y: 0 }, data: { type: 'vacuum_chamber', category: 'coldatom', name: 'Chamber' } },
+      // Deliberately types this build has never had. `vacuum_chamber` used to stand in here
+      // and then became real, which is the hazard with using a plausible name for this.
+      { id: 'ETALON', type: 'optical', position: { x: 300, y: 0 }, data: { type: 'gravity_etalon', category: 'coldatom', name: 'Etalon' } },
       { id: 'STAGE', type: 'optical', position: { x: 600, y: 0 }, data: { type: 'rotation_stage', category: 'optomechanics', name: 'Stage' } },
     ]);
     const { nodes, notes } = layoutFromJSON(file);
     expect(nodes.map(n => n.id)).toEqual(['L1']);
     expect(notes.join(' ')).toMatch(/2 components could not be read/);
-    expect(notes.join(' ')).toMatch(/vacuum_chamber/);
+    expect(notes.join(' ')).toMatch(/gravity_etalon/);
     expect(notes.join(' ')).toMatch(/rotation_stage/);
   });
 

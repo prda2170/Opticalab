@@ -18,6 +18,8 @@ import { groupIdOf } from '../../utils/grouping';
 import { useClipboard } from '../../store/useClipboard';
 import { angleStepFor, SURFACE_AT_45 } from '../../utils/nodeGeometry';
 import { norm360, snapAngle } from '../../physics/geometry';
+import { chamberSpec, portStates, faceStepDeg, type PortState } from '../../physics/chamber';
+import { pxToMm } from '../../physics/scale';
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
@@ -559,6 +561,55 @@ function renderFields(
         attenuation. The wedge angle tilts the end windows in the icon.
       </Hint>
     </>;
+    case 'vacuum_chamber': {
+      const spec = chamberSpec(data);
+      const ports = spec.ports;
+      const setPorts = (next: PortState[]) => u({ ports: next });
+      return <>
+        <Row label="Side ports">
+          <Num value={spec.sides} min={3} max={24} step={1}
+            onChange={v => {
+              const sides = Math.max(3, Math.min(24, Math.round(v)));
+              // Keep the ports already set and open the new ones, so raising the count is
+              // not a reason to redo the whole ring.
+              u({ sides, ports: portStates(ports, sides) });
+            }} />
+        </Row>
+        <Row label="Centre to face" unit="mm">
+          <Num value={Number(pxToMm(spec.inradiusPx).toFixed(2))} min={10} step={1}
+            onChange={v => u({ inradiusMm: v })} />
+        </Row>
+        <Row label="Port bore" unit="mm">
+          <Num value={Number(pxToMm(spec.borePx).toFixed(2))} min={1} step={1}
+            onChange={v => u({ boreMm: v })} />
+        </Row>
+        <Row label="Window T" unit="%">
+          <Num value={Math.round(spec.windowT * 100)} min={0} max={100} step={1}
+            onChange={v => u({ transmission: v })} />
+        </Row>
+        <Divider />
+        <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+          Side ports
+        </div>
+        <PortRing
+          ports={ports}
+          onToggle={i => {
+            const next = [...ports];
+            next[i] = next[i] === 'viewport' ? 'closed' : 'viewport';
+            setPorts(next);
+          }}
+          onAll={state => setPorts(ports.map(() => state))}
+        />
+        <Hint>
+          Plan view of a spherical polygon chamber — the defaults are the Kimball
+          MCF1000-SphDodecagon (10 in, 12 ports at 30°). A beam crosses only where it is
+          square on to a pair of opposite flats and both carry viewports; anything else lands
+          on steel and the router says so. Two windows attenuate a crossing, so 99% each is
+          98% through. A beam crossing off-centre is not seen at all — the tracer only catches
+          what passes near a component's axis.
+        </Hint>
+      </>;
+    }
     case 'power_probe': return <>
       <Toggle checked={data.showWavelength === true} onChange={v => u({ showWavelength: v })} label="Show wavelength" />
       <Toggle checked={data.showDetuning === true} onChange={v => u({ showDetuning: v })} label="Show detuning" />
@@ -696,6 +747,67 @@ const FibreInputRow: React.FC<{
     )}
   </Row>
 );
+
+/**
+ * Side ports of a chamber, laid out as the chamber itself.
+ *
+ * A list of twelve checkboxes would make you count rows to find the port at 90 degrees. Drawn
+ * as a ring, in the same frame the drawing uses (port 0 at the right, angles increasing the
+ * way the canvas turns), the control *is* the map: click where the flange is.
+ */
+const PortRing: React.FC<{
+  ports: PortState[];
+  onToggle: (index: number) => void;
+  onAll: (state: PortState) => void;
+}> = ({ ports, onToggle, onAll }) => {
+  const size = 132;
+  const r = size / 2 - 13;
+  const step = faceStepDeg(ports.length);
+  return (
+    <div>
+      <div style={{ position: 'relative', width: size, height: size, margin: '2px auto 6px' }}>
+        {/* The body, for orientation. */}
+        <div style={{
+          position: 'absolute', inset: 13, borderRadius: '50%',
+          border: '1px dashed #374151',
+        }} />
+        {ports.map((state, i) => {
+          const rad = (i * step * Math.PI) / 180;
+          const open = state === 'viewport';
+          return (
+            <button
+              key={i}
+              onClick={() => onToggle(i)}
+              title={`Port ${i} at ${Math.round(i * step)}° — ${open ? 'viewport' : 'blanked off'}`}
+              style={{
+                position: 'absolute',
+                left: size / 2 + r * Math.cos(rad) - 9,
+                top: size / 2 + r * Math.sin(rad) - 9,
+                width: 18, height: 18, borderRadius: 4, cursor: 'pointer',
+                fontSize: 9, lineHeight: 1, padding: 0,
+                background: open ? '#1e3a5f' : '#6b7280',
+                color: open ? '#93c5fd' : '#e5e7eb',
+                border: `1px solid ${open ? '#3b82f6' : '#9ca3af'}`,
+              }}
+            >
+              {i}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        <button onClick={() => onAll('viewport')} style={{
+          flex: 1, fontSize: 10, padding: '2px 0', borderRadius: 4, cursor: 'pointer',
+          background: '#1e2030', color: '#9ca3af', border: '1px solid #374151',
+        }}>All open</button>
+        <button onClick={() => onAll('closed')} style={{
+          flex: 1, fontSize: 10, padding: '2px 0', borderRadius: 4, cursor: 'pointer',
+          background: '#1e2030', color: '#9ca3af', border: '1px solid #374151',
+        }}>All blanked</button>
+      </div>
+    </div>
+  );
+};
 
 /** Colour picker for annotations: the fixed palette, because a figure wants few colours. */
 const Swatches: React.FC<{ value: string; onChange: (c: string) => void }> = ({ value, onChange }) => (

@@ -423,6 +423,37 @@ export interface PowerProbeData extends BaseNodeData {
   showSpot?: boolean;
 }
 
+/**
+ * A spherical-polygon vacuum chamber, in plan view: a Kimball spherical octagon or
+ * dodecagon seen from above, with one side port per flat.
+ *
+ * Parameterised rather than fixed to one part, because the same drawing serves both sizes on
+ * the shelf. Defaults are the MCF1000-SphDodecagon (10 in, 12 ports) — see
+ * `physics/chamber.ts` for where every number comes from.
+ *
+ * The geometry is per instance, so `sizeOf` computes its box rather than the type table.
+ */
+export interface VacuumChamberData extends BaseNodeData {
+  type: 'vacuum_chamber';
+  /** Side ports, equally spaced. 12 for a dodecagon, 8 for an octagon. */
+  sides: number;
+  /** Centre to flange face, mm — the polygon's inradius. */
+  inradiusMm: number;
+  /** Side port clear aperture, mm. A beam further off the axis than its radius hits metal. */
+  boreMm: number;
+  /** Bore length through the wall, mm. Drawn, not optical. */
+  tubeMm?: number;
+  /** Vertical (top/bottom) port bore, mm. Drawn as the inner circle in plan view. */
+  topBoreMm?: number;
+  /**
+   * State of each side port, index 0 at the chamber's own 0 degrees. Anything missing reads
+   * as a viewport, so a chamber you have just dropped passes light.
+   */
+  ports?: ('closed' | 'viewport')[];
+  /** Transmission of one window, %. A crossing goes through two of them. */
+  transmission?: number;
+}
+
 // ─── Annotation ──────────────────────────────────────────────────────────────
 
 /**
@@ -517,6 +548,7 @@ export type OpticalNodeData =
   | ReferenceCavityData
   | DelayLineData
   | VaporCellData
+  | VacuumChamberData
   | PowerProbeData
   | RegionData
   | NoteData;

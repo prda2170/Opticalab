@@ -4,7 +4,7 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import type { OpticalNodeData } from '../../types/components';
 import { CATEGORY_COLORS } from '../../types/components';
 import { getNodeIcon, LaserBoxSVG } from './NodeIcons';
-import { getNodeGeometry, artworkOf } from '../../utils/nodeGeometry';
+import { getNodeGeometry, artworkOf, sizeOf } from '../../utils/nodeGeometry';
 import { labelLayout, type LabelLayout } from '../../utils/labelLayout';
 import { CANVAS_BOX, boxFill, labelColour } from '../../utils/canvasStyle';
 import { labelDistance, labelHalfExtents, DEFAULT_LABEL_SIDE } from '../../physics/labelPlacement';
@@ -12,6 +12,7 @@ import type { Vec2 } from '../../physics/geometry';
 import { detectorSignalLabel, incidentPower as incidentPowerOf } from '../../physics/detector';
 import { mirrorReflect } from '../../physics/geometry';
 import { componentLanes, laneExitSign } from '../../physics/lanes';
+import { ChamberArt } from './ChamberArt';
 import { useLayout } from '../../store/layoutContext';
 import { useWorkspace } from '../../store/workspaceStore';
 
@@ -338,6 +339,42 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
       ))}
     </>
   );
+
+  // ── Vacuum chamber: its own polygon, at its own size ──────────────────────
+  // Not a symbol and not a box: the geometry is per instance (sides, inradius), so neither
+  // the icon table nor the box body applies. `sizeOf` gives the square across its corners.
+  if (data.type === 'vacuum_chamber') {
+    const box = sizeOf({ data });
+    return (
+      <div
+        style={{ position: 'relative', width: box.width, height: box.height, cursor: 'pointer', userSelect: 'none' }}
+        title={data.name}
+        onClick={() => setSelectedNode(id)}
+      >
+        {selected && (
+          <div style={{
+            position: 'absolute', inset: -3, border: '2px solid #60a5fa', borderRadius: 10,
+            pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(96,165,250,0.3)',
+          }} />
+        )}
+        <svg
+          width={box.width} height={box.height}
+          viewBox={`${-box.width / 2} ${-box.height / 2} ${box.width} ${box.height}`}
+          style={{ position: 'absolute', inset: 0, overflow: 'visible' }}
+        >
+          <g transform={rotation ? `rotate(${rotation})` : undefined}>
+            <ChamberArt data={data} colour={catColor} fill={boxFill(isDark)} />
+          </g>
+        </svg>
+        {/* Handles at the centre, as every symbol node has: the beam crosses the middle. */}
+        {renderHandles()}
+        {(showLabel || signal) && (
+          <NameLabel name={showLabel ? data.name : ''} color={labelColor} layout={label}
+            signal={signal} side={labelSide} distance={labelDist} />
+        )}
+      </div>
+    );
+  }
 
   // ── Laser source: custom realistic instrument box ─────────────────────────
   if (data.type === 'laser_source') {

@@ -237,6 +237,18 @@ export const PALETTE: PaletteEntry[] = [
     defaultData: { name: 'Rb cell', category: 'coldatom', type: 'vapor_cell', species: 'Rb', length: 75, temperature: 25, windowAngle: 8, bufferGas: '' },
   },
 
+  {
+    type: 'vacuum_chamber',
+    label: 'Vacuum Chamber',
+    category: 'coldatom',
+    defaultData: {
+      name: 'Chamber', category: 'coldatom', type: 'vacuum_chamber',
+      // Kimball MCF1000-SphDodecagon-H2C12, from the dimensioned drawing.
+      sides: 12, inradiusMm: 134.62, boreMm: 38.10, tubeMm: 18.42, topBoreMm: 210.82,
+      transmission: 100, showLabel: true,
+    },
+  },
+
   // ─── Utilities ────────────────────────────────────────────────────────────
   {
     type: 'power_probe',

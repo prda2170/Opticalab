@@ -1,7 +1,7 @@
 {
   "version": "1.2",
   "metadata": {
-    "created": "2026-08-25T00:48:32.879Z",
+    "created": "2026-08-25T04:43:53.172Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -499,8 +499,8 @@
       "id": "node_1787610217886_13",
       "type": "optical",
       "position": {
-        "x": 637.9059554706821,
-        "y": 276.51043374305385
+        "x": 637.035404907386,
+        "y": 275.6398831797577
       },
       "data": {
         "name": "AOM",
@@ -516,7 +516,8 @@
           "dx": 0,
           "dy": -1
         },
-        "showLabel": true
+        "showLabel": true,
+        "groupId": "grp_1787633006242_1"
       }
     },
     {
@@ -639,7 +640,8 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": -1
-        }
+        },
+        "groupId": "grp_1787633006242_1"
       }
     },
     {
@@ -658,7 +660,8 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": -1
-        }
+        },
+        "groupId": "grp_1787633006242_1"
       }
     },
     {

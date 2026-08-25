@@ -10,7 +10,7 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { OpticalNodeData, BeamEdgeData } from '../types/components';
 import type { BeamSegment, BeamState } from '../types/beam';
-import { getNodeGeometry, artworkOf, bodyBox, SURFACE_AT_45 } from '../utils/nodeGeometry';
+import { getNodeGeometry, artworkOf, bodyBox, occupiedBox, SURFACE_AT_45 } from '../utils/nodeGeometry';
 import { isOpticalNode } from '../types/components';
 import {
   advanceBeam, componentOutputs, emitterBeam, isEmitter, outputPortFor, fiberInputOf,
@@ -20,6 +20,7 @@ import { mirrorReflect, perpOf, dirKey, rotateBy, boxHalfExtent, angleOf, snapAn
 import { mmToPx, pxToMm } from './scale';
 import { drawnEndpoints, fanCollinearSegments } from './beamLayout';
 import { bodyAxis, componentLanes, laneNormal } from './lanes';
+import { chamberSpec, chamberPassage, chamberBlockMessage, polygonHalfExtent } from './chamber';
 import { placeLabels } from './labelPlacement';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -53,7 +54,14 @@ const MAX_RAY_HITS = 64;
  * Exactly the ones whose optical surface lies at 45° across the body: you point a mirror,
  * it does not point itself.
  */
-const MIRROR_TYPES = SURFACE_AT_45;
+/**
+ * Components the router must not turn to face a beam.
+ *
+ * Mirror-like surfaces are *aimed* rather than aligned, and a vacuum chamber is bolted to the
+ * table: spinning it so a stray beam lines up with a flat would be nonsense, and would move
+ * every other port under the rest of the layout.
+ */
+const AIMED_TYPES = new Set<string>([...SURFACE_AT_45, 'vacuum_chamber']);
 
 /**
  * Component types where the beam should be drawn through the body (center-to-center),
@@ -67,6 +75,7 @@ const BEAM_THROUGH_TYPES = new Set([
   'plano_convex', 'plano_concave',     // lenses — physically transparent
   'vapor_cell',                        // glass cell — beam runs the length of the tube
   'dielectric_mirror', 'galvo',        // reflective surface is the diagonal at center
+  'vacuum_chamber',                    // the beam crosses the vacuum, port to port
 ]);
 
 /**
@@ -178,7 +187,10 @@ function labelNodes(
 // ── Geometry helpers ──────────────────────────────────────────────────────────
 
 function nodeCenter(node: Node<OpticalNodeData>): Pt {
-  const g = getNodeGeometry(node.data.type, node.data.rotation ?? 0);
+  // `occupiedBox`, not `getNodeGeometry`: a chamber's size is its own, and centring it by the
+  // type table put its centre tens of px from where it is drawn — far enough for beams aimed
+  // straight at it to sail past.
+  const g = occupiedBox(node.data, node.data.rotation ?? 0);
   return { x: node.position.x + g.width / 2, y: node.position.y + g.height / 2 };
 }
 
@@ -234,6 +246,26 @@ export function faceHalf(type: OpticalNodeData['type'], rotation: number, dir: V
  * and the beam direction together, so the old two-case rule gave the same answer either
  * way); at 45° it showed up as a waveplate trimmed 8.49 px instead of 6.
  */
+/**
+ * Distance from a component's centre to its boundary along `dir` — the rectangle rule for
+ * everything with a box body, the polygon rule for a chamber.
+ *
+ * Takes node *data* rather than a type because a chamber's size is per instance: the same
+ * component type is a 10 in dodecagon or an 8 in octagon depending on what it says it is.
+ */
+export function bodyHalfExtentFor(
+  data: OpticalNodeData,
+  rotation: number,
+  dir: Vec2,
+): number {
+  if (data.type === 'vacuum_chamber') {
+    const spec = chamberSpec(data);
+    // Into the chamber's own frame, where the flats are.
+    return polygonHalfExtent(spec.inradiusPx, spec.sides, angleOf(dir) - rotation);
+  }
+  return faceHalf(data.type, rotation, dir);
+}
+
 function trimFor(
   node: Node<OpticalNodeData> | undefined,
   dir: Vec2,
@@ -242,7 +274,7 @@ function trimFor(
 ): number {
   if (!node || BEAM_THROUGH_TYPES.has(node.data.type)) return 0;
   if (side === 'source' && EMITTER_FACE_TYPES.has(node.data.type)) return 0;
-  return faceHalf(node.data.type, rotation, dir);
+  return bodyHalfExtentFor(node.data, rotation, dir);
 }
 
 /**
@@ -327,6 +359,9 @@ export function autoRoute(
 
   /** Lasers already warned about optical feedback, so we report each one once. */
   const warnedFeedback = new Set<string>();
+
+  /** Chambers already warned about a blocked crossing — one message per chamber. */
+  const warnedChamber = new Set<string>();
 
   const usedSegmentIds = new Set<string>();
   const usedPhantomIds = new Set<string>();
@@ -612,13 +647,13 @@ export function autoRoute(
     // invariance is what lets a double-passed cell retrace its own path.
     const beamAngle = snapAngle(angleOf(ray.dir));
     const sidedLanes = componentLanes(best.data).length > 1;
-    const autoRot = (isSecondEntry || MIRROR_TYPES.has(best.data.type))
+    const autoRot = (isSecondEntry || AIMED_TYPES.has(best.data.type))
       ? (best.data.rotation ?? 0)
       : (sidedLanes ? beamAngle % 180 : beamAngle);
 
     if (!isSecondEntry) result.rotations.set(best.id, autoRot);
 
-    const effGeom = getNodeGeometry(best.data.type, autoRot);
+    const effGeom = occupiedBox(best.data, autoRot);
     const effW = effGeom.width;
     const effH = effGeom.height;
     /**
@@ -693,7 +728,30 @@ export function autoRoute(
     if (ray.hits >= MAX_RAY_HITS) { result.truncated = true; continue; }
 
     const path: PathNode = { key: visitKey, prev: ray.path };
-    for (const port of componentOutputs(beamAtNode, best.data, { entryLane: bestLane, entryDir: ray.dir })) {
+    // How far the beam passes from the axis it hit — not to be confused with the lane
+    // offset above, which is where the axis itself sits. Only an aperture cares, but the
+    // tracer is the only place that knows it.
+    const rayPerpAtHit = perpOf(ray.dir);
+    const centreRel = {
+      dx: nodeCenter(best).x - ray.origin.x,
+      dy: nodeCenter(best).y - ray.origin.y,
+    };
+    const axisOffset = Math.abs(
+      centreRel.dx * rayPerpAtHit.dx + centreRel.dy * rayPerpAtHit.dy);
+
+    if (best.data.type === 'vacuum_chamber' && ray.beam.power >= MIN_POWER_MW
+        && !warnedChamber.has(best.id)) {
+      const spec = chamberSpec(best.data);
+      const passage = chamberPassage(
+        spec, angleOf(ray.dir) - (best.data.rotation ?? 0), axisOffset);
+      if (passage.blocked) {
+        warnedChamber.add(best.id);
+        result.warnings.push({ nodeId: best.id, message: chamberBlockMessage(passage.blocked, spec) });
+      }
+    }
+
+    for (const port of componentOutputs(beamAtNode, best.data,
+        { entryLane: bestLane, entryDir: ray.dir, entryOffset: axisOffset })) {
       // A dumped port is absorbed inside the component — its power is reported by
       // componentOutputs (so the properties panel can show it) but no beam leaves.
       if (port.dumped) continue;

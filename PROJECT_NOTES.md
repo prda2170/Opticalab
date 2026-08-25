@@ -127,6 +127,16 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   is invisible to the physics — it cannot terminate, attenuate or split a beam — and finds
   what it needs by reading the finished `segments` instead. Probes are still in
   `store.nodes`, so they persist, undo, and appear in the diagram.
+- **A vacuum chamber is a polygon, and its size is its own.** `physics/chamber.ts` holds the
+  geometry — `sides` and `inradiusMm` are the part, defaults from the Kimball MCF1000
+  dodecagon — and `chamberPassage` decides whether a beam gets across. `bodyHalfExtentFor`
+  in `autoRoute` dispatches on the outline: the rectangle rule for everything with a box
+  body, `R / cos(delta to the nearest face normal)` for a chamber.
+- **`occupiedBox(data, rotation)` is how anything holding a real node measures it.**
+  `getNodeGeometry` answers per *type* and inflates a turned rectangle; `occupiedBox` is the
+  per-*instance* answer, and the router centres components with it. The two disagreeing is not
+  cosmetic — see the change log for the beams that sailed straight through a chamber because
+  of it.
 - **A group is a shared `groupId`, not an xyflow parent.** Native parent/child grouping would
   make `node.position` parent-relative, and every consumer here — the tracer, snapping, label
   placement, the figure renderer — reads it as absolute canvas coordinates. So
@@ -525,6 +535,62 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-24 — a chamber you can aim beams into
+
+A spherical-polygon vacuum chamber in plan view, parameterised rather than fixed to one part:
+`sides` and `inradiusMm` are the chamber, and the defaults are the Kimball
+MCF1000-SphDodecagon-H2C12 — 12 ports at 30°, 5.300 in centre to each 2.75 CF face, 1.500 in
+bore, 8.300 in vertical bore. Setting `sides: 8, inradiusMm: 100.5` gives the MCF800 octagon.
+
+**Nothing was invented.** Every number came out of `beamlayout/presets/`, where they were
+already read off the dimensioned drawing with consistency checks, and the tests re-derive those
+checks at the app's scale: across-corners from a 134.62 inradius is 278.74 mm against the quoted
+278.03 spherical OD, and the flat comes out 72.14 mm, which is what lets a 69.85 mm flange bolt
+to it. At 40 px/in the chamber is 424 px across flats and 439 across corners — about ten times a
+mirror, which is correct, because it is a ten inch object on a bench where mounts are an inch.
+
+**The lattice fits it exactly.** Twelve faces is a 30° step and the beam lattice is 15°, so
+every port normal is reachable and opposite ports are precisely antiparallel.
+
+**What the physics claims.** `chamberPassage` decides the fate of a beam crossing the centre:
+square on to a pair of flats with viewports at both ends, it goes through attenuated by two
+windows; square on with either flange blanked, it is absorbed there; not square on, it meets the
+wall between two flats. Each outcome carries a sentence, and the router raises it once per
+chamber. The bore is checked too, though on a 1.5 in port that can only fire for a narrow
+flange: the tracer captures a beam within 10 px of an axis and the bore radius is 30.
+
+**What it does not claim, and this is worth knowing:** a beam crossing the body *off*-centre is
+not captured at all, and is drawn straight over the chamber. That is the centre-based hit test,
+not the chamber — a chord through a body is the case it cannot see. A plan view also cannot show
+the vertical ports, so an oblique MOT beam has no representation here at all.
+
+**The bug this turned up was not in the chamber.** Beams aimed straight at it sailed through
+untouched, because the router centres a component with `getNodeGeometry(type, rotation)` — a
+per-*type* box that inflates when turned — while the chamber drew itself at its own size. At 15°
+the two centres were 50 px apart, well past the 10 px capture distance. `occupiedBox(data,
+rotation)` is now the single per-instance measurement, the router uses it for both the centre and
+the snap, and `sizeOf` delegates to it. A node whose drawn size and measured size differ is a
+node beams miss, which is a good thing to have found on a component big enough to notice.
+
+**Both renderers draw from `ChamberArt`** — body, per-port stub and flange plate, and the
+vertical bore as a dashed circle. A blanked port is a filled plate with a bar across the bore;
+a viewport is open with a window line. That distinction is exactly what the physics acts on, so
+the drawing cannot disagree with the trace. The chamber is in `BEAM_THROUGH_TYPES`, so the beam
+is drawn crossing the vacuum, and in a new `AIMED_TYPES` so the router never spins it to face a
+stray beam: it is bolted to the table, and turning it would drag eleven other ports across the
+layout.
+
+**The port ring.** Twelve checkboxes in a list would mean counting rows to find the flange at
+90°. The panel draws them as a ring in the chamber's own frame, so the control is the map, with
+All open / All blanked for the common case.
+
+52 tests added (`chamber.test.ts`, `chamberTrace.test.ts`): the drawing numbers and both
+catalogue parts, the polygon extent reaching the inradius along every normal and the
+circumradius at every corner and never leaving that ring, face indexing and wrapping, ports
+padding and trimming, and then the crossings — through, blanked entry, blanked exit, wall,
+odd-sided, bore, two-window attenuation, reciprocity, warn-once, never auto-rotated, and the
+occupied box being rotation-invariant. **634 tests total.**
 
 ### 2026-08-24 — the dumped order was pointing upstream
 

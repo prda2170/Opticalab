@@ -13,6 +13,7 @@
 //     than the artwork (a waveplate is 12 px of glass in a 32 px box). In the
 //     component's own frame, like the artwork.
 import type { OpticalNodeData } from '../types/components';
+import { chamberSpec, circumradiusPx } from '../physics/chamber';
 import { unitAt, rotateBy, dot, DIR_STEP_DEG, MIRROR_STEP_DEG, type Vec2 } from '../physics/geometry';
 
 export type SymbolType = 'symbol' | 'box';
@@ -99,6 +100,8 @@ const GEOMETRIES: Partial<Record<OpticalNodeData['type'], NodeGeometry>> = {
   // Glass cell drawn side-on, so the tube lies along the beam. Transparent, so the
   // beam is drawn straight through it (BEAM_THROUGH_TYPES in autoRoute).
   vapor_cell:        { width: 88, height: 44, symbolType: 'symbol' },
+  // The default 10 in dodecagon, across corners. Real size is per instance — see `sizeOf`.
+  vacuum_chamber:    { width: 439, height: 439, symbolType: 'symbol' },
 
   // ── Utilities ─────────────────────────────────────────────────────────────
   // Just the probe circle; its readout is drawn outside the box (overflow visible).
@@ -233,9 +236,31 @@ export function drawnHalfExtents(type: OpticalNodeData['type']): { halfAlong: nu
  * right answer for them. Annotations are whatever the user dragged them out to be, and every
  * caller that walks *all* the nodes (figure bounds, label obstacles) needs to know that.
  */
+/**
+ * The box a node occupies, for a node whose size may be its own rather than its type's.
+ *
+ * `getNodeGeometry` answers per *type* and turns a rectangle; this is the per-*instance*
+ * answer, and it is what anything holding a real node should ask — the tracer included. The
+ * two disagreeing is not a cosmetic matter: the router centres a component with this, so a
+ * node whose drawn size and measured size differ is a node beams miss.
+ *
+ * `rotation` is passed explicitly because the router needs the box at the angle it has just
+ * *decided*, not the one still in the node's data.
+ */
+export function occupiedBox(data: OpticalNodeData, rotation = 0): NodeGeometry {
+  if (data.type === 'vacuum_chamber') {
+    const spec = chamberSpec(data);
+    // A regular polygon's own bounding square does not grow when turned, so a chamber is
+    // exempt from the rectangle inflation `getNodeGeometry` applies.
+    const across = 2 * circumradiusPx(spec.inradiusPx, spec.sides);
+    return { ...artworkOf('vacuum_chamber'), width: across, height: across };
+  }
+  return getNodeGeometry(data.type, rotation);
+}
+
 export function sizeOf(node: { data?: { type?: string; w?: unknown; h?: unknown; rotation?: number } }): { width: number; height: number } {
   const d = node.data ?? {};
-  const g = getNodeGeometry((d.type ?? 'optical') as OpticalNodeData['type'], d.rotation ?? 0);
+  const g = occupiedBox(d as unknown as OpticalNodeData, d.rotation ?? 0);
   return {
     width: typeof d.w === 'number' && d.w > 0 ? d.w : g.width,
     height: typeof d.h === 'number' && d.h > 0 ? d.h : g.height,

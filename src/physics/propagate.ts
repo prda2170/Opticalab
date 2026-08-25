@@ -11,6 +11,8 @@ import { applyPowerTransform, insertionLossFactor } from './power';
 import { outputWavelength } from './wavelength';
 import { hwpMatrix, qwpMatrix, linearPolarizer, propagatePolarization, polarizationToJones, cabs2 } from './jones';
 import { dot, type Vec2 } from './geometry';
+import { chamberSpec, chamberPassage } from './chamber';
+import { angleOf } from './geometry';
 import { bodyAxis } from './lanes';
 import {
   advanceQ, beamRadiusAt, distanceToWaist, divergenceOf, effectiveWavelengthMm,
@@ -56,6 +58,12 @@ export interface PortContext {
    * which is what the properties panel wants when it previews a component's outputs.
    */
   entryDir?: Vec2;
+  /**
+   * How far the beam passes from the axis it hit, px. Only an aperture cares — a chamber
+   * port is a tube, and a beam wide of its bore lands on the flange. Absent means "on
+   * axis", which is what a properties-panel preview should assume.
+   */
+  entryOffset?: number;
 }
 
 /** Power below which a beam is treated as extinguished (1 µW). */
@@ -251,6 +259,30 @@ function rawOutputs(inBeam: BeamState, node: OpticalNodeData, ctx: PortContext):
         dumpedAs: 'coupled in',
         beam: { ...inBeam, power: inBeam.power * (node.couplingEfficiency / 100) * lossF },
       }];
+
+    // ── Vacuum chamber ───────────────────────────────────────────────────────
+    // A beam crosses only where the chamber lets it: square on to a pair of flats, both
+    // fitted with viewports, inside the bore. Everything else ends here, which is what
+    // happens on the bench — the light lands on steel. `chamberPassage` decides; this only
+    // has to apply the answer.
+    case 'vacuum_chamber': {
+      const spec = chamberSpec(node);
+      const rotation = node.rotation ?? 0;
+      // Travel direction taken into the chamber's own frame, where the flats are.
+      const travelDeg = ctx.entryDir ? angleOf(ctx.entryDir) - rotation : -rotation;
+      const passage = chamberPassage(spec, travelDeg, ctx.entryOffset ?? 0);
+      if (passage.blocked) {
+        return [{
+          handle: 'out', kind: 'transmit', lane: ctx.entryLane, dumped: true,
+          dumpedAs: passage.blocked === 'wall' ? 'chamber wall' : 'chamber flange',
+          beam: { ...inBeam, power: 0 },
+        }];
+      }
+      return [{
+        handle: 'out', kind: 'transmit', lane: ctx.entryLane,
+        beam: { ...inBeam, power: inBeam.power * passage.transmission * lossF },
+      }];
+    }
 
     // A patch cord isn't a free-space optic. If a beam lands on one it stops there
     // rather than passing through as if the glass were a window.

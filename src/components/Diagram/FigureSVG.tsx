@@ -39,6 +39,7 @@ import {
 } from '../../utils/annotationStyle';
 import { parseRich, SCRIPT_SCALE, SCRIPT_RISE } from '../../utils/richText';
 import { annotationsInLayer } from '../../utils/stacking';
+import { ChamberArt } from '../Nodes/ChamberArt';
 
 /** Padding around the layout, px. */
 const FIGURE_PAD = 60;
@@ -272,6 +273,26 @@ const Component: React.FC<{
   const drawn = iconDimensions(data.type, iconSize);
   const label = labelLayout(labelScale, CANVAS_LABEL.basePx);
   const showName = data.showLabel === true;
+
+  if (data.type === 'vacuum_chamber') {
+    // Same art the canvas draws, from the same module, so the figure cannot disagree.
+    return (
+      <g transform={`translate(${cx}, ${cy})`}>
+        <g transform={rotation ? `rotate(${rotation})` : undefined}>
+          <ChamberArt data={data} colour={catColor} fill={boxFill(dark)} />
+        </g>
+        {showName && (
+          <text
+            x={0} y={sizeOf(node).height / 2 + CANVAS_LABEL.basePx * labelScale + 4}
+            textAnchor="middle" fontSize={label.fontSize} fill={labelColour(dark)}
+            fontFamily="system-ui, sans-serif" fontWeight={500}
+          >
+            {data.name}
+          </text>
+        )}
+      </g>
+    );
+  }
 
   return (
     <g transform={`translate(${cx}, ${cy})`}>
