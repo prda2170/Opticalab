@@ -1,7 +1,7 @@
 {
   "version": "1.2",
   "metadata": {
-    "created": "2026-08-24T22:11:37.388Z",
+    "created": "2026-09-01T21:19:16.155Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -256,7 +256,7 @@
         "type": "eom",
         "eomType": "free_space",
         "transmission": 95,
-        "rfFrequency": 9.2,
+        "rfFrequency": 6,
         "rfPower": 30,
         "beamIncomingDir": {
           "dx": 1,
@@ -408,7 +408,7 @@
       "type": "optical",
       "position": {
         "x": 458.82910833474637,
-        "y": 53.86987291348126
+        "y": 46.11816474235194
       },
       "data": {
         "name": "EOM",
@@ -416,13 +416,14 @@
         "type": "eom",
         "eomType": "free_space",
         "transmission": 95,
-        "rfFrequency": 9.2,
+        "rfFrequency": 6835,
         "rfPower": 30,
         "beamIncomingDir": {
           "dx": 0,
           "dy": -1
         },
-        "rotation": 270
+        "rotation": 270,
+        "showLabel": true
       }
     },
     {
@@ -793,8 +794,8 @@
         "name": "P",
         "category": "utility",
         "type": "power_probe",
-        "labelDx": -6,
-        "labelDy": 57
+        "labelDx": -8,
+        "labelDy": 69
       }
     },
     {
@@ -808,16 +809,16 @@
         "name": "P",
         "category": "utility",
         "type": "power_probe",
-        "labelDx": -13,
-        "labelDy": 50
+        "labelDx": -18,
+        "labelDy": 65
       }
     },
     {
       "id": "annot_1787607800394_1",
       "type": "region",
       "position": {
-        "x": 425.1119757182104,
-        "y": 182.0178589325631
+        "x": 432.86368388933954,
+        "y": 180.91047205097317
       },
       "data": {
         "name": "",

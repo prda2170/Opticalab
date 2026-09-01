@@ -137,6 +137,9 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   per-*instance* answer, and the router centres components with it. The two disagreeing is not
   cosmetic — see the change log for the beams that sailed straight through a chamber because
   of it.
+- **Selection is literal.** A click or a box selects what it touched, never a group's other
+  members. Grouping affects *movement* only — `groupSiblingMoves` propagates a drag by delta,
+  which needs no selection at all. See the change log for why the expansion had to go.
 - **A group is a shared `groupId`, not an xyflow parent.** Native parent/child grouping would
   make `node.position` parent-relative, and every consumer here — the tracer, snapping, label
   placement, the figure renderer — reads it as absolute canvas coordinates. So
@@ -535,6 +538,38 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-08-26 — selecting one thing selects one thing
+
+Adding a single grouped component to a selection dragged in its siblings from the other side of
+the bench. Reproduced on a bench with a three-member group and two loose mirrors: click one loose
+mirror, then add one group member, and the selection came back as all three group members plus
+the mirror.
+
+The cause was mine, from the grouping change: `onNodeClick` expanded the selection to the clicked
+node's whole group, so that Copy, Cut and Delete would act on all of it. Any click-based
+selection triggered it — building a selection with Shift or Ctrl, or a box drag whose release
+happened to land on a node.
+
+**Selection is literal now.** The expansion is gone, and grouping loses nothing by it:
+`groupSiblingMoves` moves a group by delta on any drag, selected or not, which is what "dragging
+moves them as a group" actually asked for. Copy, Cut and Delete take exactly what is selected;
+box-select a group to act on all of it, which is also how you would delete one.
+
+**It was hiding a second bug.** With the expansion in place, clicking a grouped component could
+never show its own properties: two selected nodes switch the panel to the group actions, so a
+grouped optic was uneditable. Clicking one now shows its own fields again.
+
+The dashed group outline still surrounds the whole group when any one member is selected — it
+answers "what moves if I drag this", and it is grey and dashed against blue selection rings. If
+that reads as a selection rather than a hint, it should change too.
+
+Verified in the app before and after, same gesture both times: `[]` → click a loose mirror →
+`[X]` → add one group member → **`[G2, X]`**, where it used to be `[G1, G2, G3, X]`. And a
+grouped component clicked on its own now shows Reflectivity rather than the group panel.
+
+**634 tests** unchanged: the fix is a deletion of UI behaviour, and every pure grouping rule it
+relied on — delta propagation, rigid snapping, bounds — was already covered and still passes.
 
 ### 2026-08-24 — a chamber you can aim beams into
 

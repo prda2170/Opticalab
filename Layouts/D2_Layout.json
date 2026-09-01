@@ -1,7 +1,7 @@
 {
   "version": "1.2",
   "metadata": {
-    "created": "2026-08-25T04:43:53.172Z",
+    "created": "2026-09-01T18:02:54.779Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -17,7 +17,7 @@
         "category": "source",
         "type": "laser_source",
         "wavelength": 780,
-        "outputPower": 100,
+        "outputPower": 40,
         "polarization": "H",
         "waist": 800,
         "mSquared": 1,
@@ -33,11 +33,11 @@
         "y": 197.54936840923904
       },
       "data": {
-        "name": "IO-5-780-HP",
+        "name": "IOT-5-780-VLP",
         "category": "conditioning",
         "type": "isolator",
-        "transmission": 95,
-        "isolation": 40,
+        "transmission": 85,
+        "isolation": 55,
         "beamIncomingDir": {
           "dx": 1,
           "dy": 0
@@ -113,7 +113,7 @@
         "name": "λ/2",
         "category": "conditioning",
         "type": "hwp",
-        "fastAxisAngle": 10,
+        "fastAxisAngle": 13,
         "beamIncomingDir": {
           "dx": 1,
           "dy": 0
@@ -171,7 +171,7 @@
         "name": "λ/2",
         "category": "conditioning",
         "type": "hwp",
-        "fastAxisAngle": 5,
+        "fastAxisAngle": 3,
         "beamIncomingDir": {
           "dx": 1,
           "dy": 0
@@ -239,7 +239,7 @@
       "type": "optical",
       "position": {
         "x": 345.4152623701655,
-        "y": 365.9005415457158
+        "y": 405.7203096819739
       },
       "data": {
         "name": "λ/2",
@@ -250,8 +250,7 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": 1
-        },
-        "groupId": "grp_1787610057858_2"
+        }
       }
     },
     {
@@ -259,7 +258,7 @@
       "type": "optical",
       "position": {
         "x": 359.4152623701655,
-        "y": 385.3473742098303
+        "y": 425.16714234608844
       },
       "data": {
         "name": "PBS",
@@ -268,8 +267,7 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": 1
-        },
-        "groupId": "grp_1787610057858_2"
+        }
       }
     },
     {
@@ -277,7 +275,7 @@
       "type": "optical",
       "position": {
         "x": 231.10973795678257,
-        "y": 389.3473742098303
+        "y": 429.16714234608844
       },
       "data": {
         "name": "EOM",
@@ -292,8 +290,7 @@
           "dx": -1,
           "dy": 0
         },
-        "showLabel": true,
-        "groupId": "grp_1787610057858_2"
+        "showLabel": true
       }
     },
     {
@@ -301,7 +298,7 @@
       "type": "optical",
       "position": {
         "x": 359.4152623701655,
-        "y": 446.25055760948084
+        "y": 486.07032574573896
       },
       "data": {
         "name": "M",
@@ -311,8 +308,7 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": 1
-        },
-        "groupId": "grp_1787610057858_2"
+        }
       }
     },
     {
@@ -320,7 +316,7 @@
       "type": "optical",
       "position": {
         "x": 216.2261422487926,
-        "y": 446.25055760948084
+        "y": 486.07032574573896
       },
       "data": {
         "name": "Rb cell",
@@ -336,8 +332,7 @@
           "dx": -1,
           "dy": 0
         },
-        "showLabel": true,
-        "groupId": "grp_1787610057858_2"
+        "showLabel": true
       }
     },
     {
@@ -345,7 +340,7 @@
       "type": "optical",
       "position": {
         "x": 117.38722421344443,
-        "y": 446.25055760948084
+        "y": 486.07032574573896
       },
       "data": {
         "name": "M",
@@ -356,8 +351,7 @@
           "dx": -1,
           "dy": 0
         },
-        "rotation": 90,
-        "groupId": "grp_1787610057858_2"
+        "rotation": 90
       }
     },
     {
@@ -365,7 +359,7 @@
       "type": "optical",
       "position": {
         "x": 120.76797013400409,
-        "y": 386.19055520602694
+        "y": 426.01032334228506
       },
       "data": {
         "name": "PBS",
@@ -374,8 +368,7 @@
         "beamIncomingDir": {
           "dx": -1,
           "dy": 0
-        },
-        "groupId": "grp_1787610057858_2"
+        }
       }
     },
     {
@@ -383,7 +376,7 @@
       "type": "optical",
       "position": {
         "x": 116.55206515302103,
-        "y": 340.8411646440371
+        "y": 380.66093278029524
       },
       "data": {
         "name": "PD",
@@ -396,8 +389,7 @@
           "dx": 0,
           "dy": -1
         },
-        "showLabel": true,
-        "groupId": "grp_1787610057858_2"
+        "showLabel": true
       }
     },
     {
@@ -405,7 +397,7 @@
       "type": "optical",
       "position": {
         "x": 399.0747301692988,
-        "y": 382.15771774492583
+        "y": 421.97748588118395
       },
       "data": {
         "name": "BB",
@@ -414,8 +406,7 @@
         "beamIncomingDir": {
           "dx": 1,
           "dy": 0
-        },
-        "groupId": "grp_1787610057858_2"
+        }
       }
     },
     {
@@ -430,7 +421,7 @@
         "category": "source",
         "type": "fiber_amplifier",
         "wavelength": 1064,
-        "outputPower": 2000,
+        "outputPower": 1500,
         "polarization": "H",
         "waist": 1200,
         "mSquared": 1.05,
@@ -447,10 +438,10 @@
         "y": 357.0812983946543
       },
       "data": {
-        "name": "IOT-5-780-VLP",
+        "name": "IO-5-780-HP",
         "category": "conditioning",
         "type": "isolator",
-        "transmission": 95,
+        "transmission": 92,
         "isolation": 40,
         "beamIncomingDir": {
           "dx": 1,
@@ -471,7 +462,7 @@
         "name": "λ/2",
         "category": "conditioning",
         "type": "hwp",
-        "fastAxisAngle": 30,
+        "fastAxisAngle": 4,
         "beamIncomingDir": {
           "dx": 1,
           "dy": 0
@@ -516,8 +507,7 @@
           "dx": 0,
           "dy": -1
         },
-        "showLabel": true,
-        "groupId": "grp_1787633006242_1"
+        "showLabel": true
       }
     },
     {
@@ -525,7 +515,7 @@
       "type": "optical",
       "position": {
         "x": 319.89855908708734,
-        "y": 277.2533472778938
+        "y": 317.0731154141519
       },
       "data": {
         "name": "PBS",
@@ -534,8 +524,7 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": 1
-        },
-        "groupId": "grp_1787610514867_4"
+        }
       }
     },
     {
@@ -543,22 +532,22 @@
       "type": "optical",
       "position": {
         "x": 221.5306195321246,
-        "y": 277.2533472778938
+        "y": 317.0731154141519
       },
       "data": {
         "name": "AOM",
         "category": "modulation",
         "type": "aom",
-        "rfFrequency": 80,
+        "rfFrequency": 200,
         "rfPower": 33,
-        "diffractionEfficiency": 80,
+        "diffractionEfficiency": 75,
         "transmission": 98,
         "activeOrder": "+1",
         "beamIncomingDir": {
           "dx": -1,
           "dy": 0
         },
-        "groupId": "grp_1787610514867_4"
+        "showLabel": true
       }
     },
     {
@@ -566,7 +555,7 @@
       "type": "optical",
       "position": {
         "x": 119.93140901988409,
-        "y": 277.2533472778938
+        "y": 317.0731154141519
       },
       "data": {
         "name": "Cat-eye",
@@ -578,8 +567,7 @@
         "beamIncomingDir": {
           "dx": -1,
           "dy": 0
-        },
-        "groupId": "grp_1787610514867_4"
+        }
       }
     },
     {
@@ -587,7 +575,7 @@
       "type": "optical",
       "position": {
         "x": 161.65965619455434,
-        "y": 263.2533472778938
+        "y": 303.0731154141519
       },
       "data": {
         "name": "λ/4",
@@ -599,8 +587,7 @@
           "dx": -1,
           "dy": 0
         },
-        "showLabel": false,
-        "groupId": "grp_1787610514867_4"
+        "showLabel": false
       }
     },
     {
@@ -608,7 +595,7 @@
       "type": "optical",
       "position": {
         "x": 359.4152623701655,
-        "y": 277.2533472778938
+        "y": 317.0731154141519
       },
       "data": {
         "name": "M",
@@ -619,8 +606,7 @@
           "dx": 1,
           "dy": 0
         },
-        "rotation": 90,
-        "groupId": "grp_1787610514867_4"
+        "rotation": 90
       }
     },
     {
@@ -640,8 +626,7 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": -1
-        },
-        "groupId": "grp_1787633006242_1"
+        }
       }
     },
     {
@@ -660,8 +645,7 @@
         "beamIncomingDir": {
           "dx": 0,
           "dy": -1
-        },
-        "groupId": "grp_1787633006242_1"
+        }
       }
     },
     {
@@ -725,14 +709,14 @@
       "id": "node_1787618881009_1",
       "type": "optical",
       "position": {
-        "x": 696.3961726937159,
-        "y": 343.98843420279934
+        "x": 772.1064263957976,
+        "y": 343.2604509941255
       },
       "data": {
         "name": "λ/2",
         "category": "conditioning",
         "type": "hwp",
-        "fastAxisAngle": 0,
+        "fastAxisAngle": 7,
         "beamIncomingDir": {
           "dx": 1,
           "dy": 0
@@ -743,13 +727,621 @@
       "id": "node_1787618889244_2",
       "type": "optical",
       "position": {
-        "x": 717.6716234011407,
+        "x": 799.1032805026281,
         "y": 357.98843420279934
       },
       "data": {
         "name": "PBS",
         "category": "steering",
         "type": "pbs",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "paste_1787942768391_11",
+      "type": "optical",
+      "position": {
+        "x": 799.6776296801266,
+        "y": 275.915188522682
+      },
+      "data": {
+        "name": "AOM",
+        "category": "modulation",
+        "type": "aom",
+        "rfFrequency": 80,
+        "rfPower": 33,
+        "diffractionEfficiency": 80,
+        "transmission": 98,
+        "activeOrder": "+1",
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "showLabel": true,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787942768392_12",
+      "type": "optical",
+      "position": {
+        "x": 799.1032805026281,
+        "y": 199.66531158340527
+      },
+      "data": {
+        "name": "Cat-eye",
+        "category": "steering",
+        "type": "retroreflector",
+        "reflectivity": 99.5,
+        "focalLength": 100,
+        "rotation": 270,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787942768392_13",
+      "type": "optical",
+      "position": {
+        "x": 785.1032805026281,
+        "y": 236.3747546236464
+      },
+      "data": {
+        "name": "λ/4",
+        "category": "conditioning",
+        "type": "qwp",
+        "fastAxisAngle": 44,
+        "rotation": 270,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787942768392_14",
+      "type": "optical",
+      "position": {
+        "x": 799.1032805026281,
+        "y": 438.38119570747756
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787942768392_15",
+      "type": "optical",
+      "position": {
+        "x": 717.8637612402807,
+        "y": 438.38119570747756
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787942768392_16",
+      "type": "optical",
+      "position": {
+        "x": 717.8637612402807,
+        "y": 515.0105055306612
+      },
+      "data": {
+        "name": "3D MOT",
+        "category": "fiber",
+        "type": "fiber_coupler",
+        "couplingEfficiency": 80,
+        "inputNA": 0.12,
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "showLabel": true,
+        "locked": false
+      }
+    },
+    {
+      "id": "node_1787971577123_17",
+      "type": "optical",
+      "position": {
+        "x": 699.9015810548051,
+        "y": 361.98843420279934
+      },
+      "data": {
+        "name": "EOM",
+        "category": "modulation",
+        "type": "eom",
+        "eomType": "free_space",
+        "transmission": 96,
+        "rfFrequency": 6600,
+        "rfPower": 30,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "showLabel": true
+      }
+    },
+    {
+      "id": "paste_1788127341515_1",
+      "type": "optical",
+      "position": {
+        "x": 948.8273520387647,
+        "y": 275.784403719621
+      },
+      "data": {
+        "name": "AOM",
+        "category": "modulation",
+        "type": "aom",
+        "rfFrequency": 80,
+        "rfPower": 33,
+        "diffractionEfficiency": 80,
+        "transmission": 98,
+        "activeOrder": "+1",
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "showLabel": true,
+        "locked": false,
+        "dumpZeroOrder": true
+      }
+    },
+    {
+      "id": "paste_1788127341515_2",
+      "type": "optical",
+      "position": {
+        "x": 948.790766793916,
+        "y": 196.66278089285163
+      },
+      "data": {
+        "name": "Cat-eye",
+        "category": "steering",
+        "type": "retroreflector",
+        "reflectivity": 99.5,
+        "focalLength": 100,
+        "rotation": 270,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127341515_3",
+      "type": "optical",
+      "position": {
+        "x": 935.6979026020608,
+        "y": 235.66962064308683
+      },
+      "data": {
+        "name": "λ/4",
+        "category": "conditioning",
+        "type": "qwp",
+        "fastAxisAngle": 44,
+        "rotation": 270,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127341515_4",
+      "type": "optical",
+      "position": {
+        "x": 948.6979026020608,
+        "y": 439.9540661091878
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127341515_5",
+      "type": "optical",
+      "position": {
+        "x": 867.9628156771555,
+        "y": 439.9540661091878
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127341515_6",
+      "type": "optical",
+      "position": {
+        "x": 868.2061187984493,
+        "y": 512.0451642684357
+      },
+      "data": {
+        "name": "2D MOT",
+        "category": "fiber",
+        "type": "fiber_coupler",
+        "couplingEfficiency": 80,
+        "inputNA": 0.12,
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "showLabel": true,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127347251_7",
+      "type": "optical",
+      "position": {
+        "x": 927.5832075611285,
+        "y": 343.98843420279934
+      },
+      "data": {
+        "name": "λ/2",
+        "category": "conditioning",
+        "type": "hwp",
+        "fastAxisAngle": 30,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "locked": false,
+        "rotation": 0
+      }
+    },
+    {
+      "id": "paste_1788127352533_8",
+      "type": "optical",
+      "position": {
+        "x": 948.8273520387647,
+        "y": 357.98843420279934
+      },
+      "data": {
+        "name": "PBS",
+        "category": "steering",
+        "type": "pbs",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127478016_9",
+      "type": "optical",
+      "position": {
+        "x": 1104.7796693768103,
+        "y": 275.3756442148766
+      },
+      "data": {
+        "name": "AOM",
+        "category": "modulation",
+        "type": "aom",
+        "rfFrequency": 80,
+        "rfPower": 33,
+        "diffractionEfficiency": 80,
+        "transmission": 98,
+        "activeOrder": "+1",
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "showLabel": true,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127478016_10",
+      "type": "optical",
+      "position": {
+        "x": 1104.7430841319615,
+        "y": 196.25402138810722
+      },
+      "data": {
+        "name": "Cat-eye",
+        "category": "steering",
+        "type": "retroreflector",
+        "reflectivity": 99.5,
+        "focalLength": 100,
+        "rotation": 270,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127478016_11",
+      "type": "optical",
+      "position": {
+        "x": 1091.6502199401064,
+        "y": 235.26086113834242
+      },
+      "data": {
+        "name": "λ/4",
+        "category": "conditioning",
+        "type": "qwp",
+        "fastAxisAngle": 44,
+        "rotation": 270,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": -1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127478016_12",
+      "type": "optical",
+      "position": {
+        "x": 1104.6502199401064,
+        "y": 439.5453066044434
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127478016_13",
+      "type": "optical",
+      "position": {
+        "x": 1023.915133015201,
+        "y": 439.5453066044434
+      },
+      "data": {
+        "name": "M",
+        "category": "steering",
+        "type": "dielectric_mirror",
+        "reflectivity": 99.5,
+        "beamIncomingDir": {
+          "dx": -1,
+          "dy": 0
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127478016_14",
+      "type": "optical",
+      "position": {
+        "x": 1024.1584361364949,
+        "y": 511.6364047636916
+      },
+      "data": {
+        "name": "Imaging",
+        "category": "fiber",
+        "type": "fiber_coupler",
+        "couplingEfficiency": 80,
+        "inputNA": 0.12,
+        "rotation": 90,
+        "beamIncomingDir": {
+          "dx": 0,
+          "dy": 1
+        },
+        "showLabel": true,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788127485287_15",
+      "type": "optical",
+      "position": {
+        "x": 1085.0512414656844,
+        "y": 343.98843420279934
+      },
+      "data": {
+        "name": "λ/2",
+        "category": "conditioning",
+        "type": "hwp",
+        "fastAxisAngle": 5,
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "locked": false,
+        "rotation": 0
+      }
+    },
+    {
+      "id": "paste_1788127488802_16",
+      "type": "optical",
+      "position": {
+        "x": 1104.7796693768103,
+        "y": 357.23057591954415
+      },
+      "data": {
+        "name": "PBS",
+        "category": "steering",
+        "type": "pbs",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "annot_1788131783000_1",
+      "type": "region",
+      "position": {
+        "x": 102.23487511039983,
+        "y": 294.0540695591226
+      },
+      "data": {
+        "name": "MTS Lock",
+        "category": "utility",
+        "type": "region",
+        "w": 324,
+        "h": 269,
+        "shape": "rect",
+        "colour": "#3b82f6",
+        "fillOpacity": 0.08,
+        "caption": "MTS Lock"
+      }
+    },
+    {
+      "id": "node_1788194102534_1",
+      "type": "power_probe",
+      "position": {
+        "x": 569.1708685457768,
+        "y": 493.4861297334211
+      },
+      "data": {
+        "name": "P",
+        "category": "utility",
+        "type": "power_probe",
+        "labelDx": -66,
+        "labelDy": -11
+      }
+    },
+    {
+      "id": "paste_1788194115267_1",
+      "type": "power_probe",
+      "position": {
+        "x": 730.8637612402807,
+        "y": 483.06552359199486
+      },
+      "data": {
+        "name": "P",
+        "category": "utility",
+        "type": "power_probe",
+        "labelDx": -61,
+        "labelDy": 12,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788194128461_2",
+      "type": "power_probe",
+      "position": {
+        "x": 880.9628156771555,
+        "y": 488.5659533528777
+      },
+      "data": {
+        "name": "P",
+        "category": "utility",
+        "type": "power_probe",
+        "labelDx": -73,
+        "labelDy": 9,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788194135619_3",
+      "type": "power_probe",
+      "position": {
+        "x": 1036.915133015201,
+        "y": 484.8990001789558
+      },
+      "data": {
+        "name": "P",
+        "category": "utility",
+        "type": "power_probe",
+        "labelDx": -70,
+        "labelDy": 12,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788194258519_4",
+      "type": "power_probe",
+      "position": {
+        "x": 492.3010355741028,
+        "y": 165.9189456224293
+      },
+      "data": {
+        "name": "P",
+        "category": "utility",
+        "type": "power_probe",
+        "labelDx": -66,
+        "labelDy": -18,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1788194285833_5",
+      "type": "power_probe",
+      "position": {
+        "x": 332.89855908708734,
+        "y": 268.9751654666326
+      },
+      "data": {
+        "name": "P",
+        "category": "utility",
+        "type": "power_probe",
+        "labelDx": 49,
+        "labelDy": -13,
+        "locked": false
+      }
+    },
+    {
+      "id": "node_1788285770128_1",
+      "type": "optical",
+      "position": {
+        "x": 1202.973051802665,
+        "y": 353.98843420279934
+      },
+      "data": {
+        "name": "BB",
+        "category": "conditioning",
+        "type": "beam_block",
         "beamIncomingDir": {
           "dx": 1,
           "dy": 0

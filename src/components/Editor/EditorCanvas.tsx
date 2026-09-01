@@ -40,7 +40,7 @@ import { probeSnaps } from '../../physics/probe';
 import { autoRoute } from '../../physics/autoRoute';
 import { CANVAS_GRID, canvasBg, gridColour } from '../../utils/canvasStyle';
 import {
-  groupIdOf, membersOf, groupSiblingMoves, rigidGroupSnaps, groupBounds, selectedGroupIds,
+  groupSiblingMoves, rigidGroupSnaps, groupBounds, selectedGroupIds,
 } from '../../utils/grouping';
 
 type AppNode = Node<OpticalNodeData>;
@@ -249,16 +249,23 @@ export const EditorCanvas: React.FC<{ mode?: CanvasMode }> = ({ mode = 'edit' })
     [nodes, onNodesChangeBase],
   );
 
-  // Clicking one member selects the whole group, so Copy, Cut and Delete act on all of it.
+  /**
+   * A click selects what was clicked, and nothing else.
+   *
+   * This used to expand the selection to the clicked node's whole group, so that Copy, Cut and
+   * Delete would act on all of it. That was wrong, and visibly so: **selection has to be
+   * literal**. Adding one member to a selection dragged in its siblings from the other side of
+   * the bench, a box selection that caught one member silently grew, and — worse — clicking a
+   * grouped component could never show its own properties, because two selected nodes switch
+   * the panel to the group actions.
+   *
+   * Grouping does not need it. `groupSiblingMoves` moves a group by delta on any drag, selected
+   * or not, which is what "dragging moves them as a group" actually asked for. Copy, Cut and
+   * Delete now take exactly what is selected; box-select a group to act on all of it.
+   */
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: AppNode) => {
-      setSelectedNode(node.id);
-      const groupId = groupIdOf(node);
-      if (!groupId) return;
-      const ids = new Set(membersOf(nodes as Node<OpticalNodeData>[], groupId).map(n => n.id));
-      setNodes(prev => prev.map(n => (ids.has(n.id) ? { ...n, selected: true } : n)));
-    },
-    [nodes, setNodes, setSelectedNode],
+    (_: React.MouseEvent, node: AppNode) => setSelectedNode(node.id),
+    [setSelectedNode],
   );
 
   // ── Edge changes: block deletion of auto-edges ────────────────────────────

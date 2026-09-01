@@ -1,0 +1,529 @@
+{
+  "version": "1.2",
+  "metadata": {
+    "created": "2026-08-31T16:41:01.693Z",
+    "app": "OpticaLab"
+  },
+  "nodes": [
+    {
+      "id": "node_1787718670177_1",
+      "type": "optical",
+      "position": {
+        "x": 291.5019662239972,
+        "y": 161.3356113050063
+      },
+      "data": {
+        "name": "Chamber",
+        "category": "coldatom",
+        "type": "vacuum_chamber",
+        "sides": 12,
+        "inradiusMm": 134.62,
+        "boreMm": 38.1,
+        "tubeMm": 18.42,
+        "topBoreMm": 210.82,
+        "transmission": 100,
+        "showLabel": true,
+        "ports": [
+          "closed",
+          "viewport",
+          "viewport",
+          "viewport",
+          "viewport",
+          "viewport",
+          "closed",
+          "viewport",
+          "viewport",
+          "viewport",
+          "viewport",
+          "viewport"
+        ],
+        "beamIncomingDir": {
+          "dx": 0.8660254037844384,
+          "dy": -0.5000000000000004
+        }
+      }
+    },
+    {
+      "id": "node_1787718748039_3",
+      "type": "optical",
+      "position": {
+        "x": 275.7418140759986,
+        "y": 700.7300013673874
+      },
+      "data": {
+        "name": "Lattice",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 1040,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 300,
+        "showLabel": true
+      }
+    },
+    {
+      "id": "paste_1787718818206_1",
+      "type": "optical",
+      "position": {
+        "x": 163.90380497358632,
+        "y": 533.7955825200448
+      },
+      "data": {
+        "name": "MOT+Imaging+LGM",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 780,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 330,
+        "showLabel": true,
+        "locked": false
+      }
+    },
+    {
+      "id": "node_1787718852105_4",
+      "type": "optical",
+      "position": {
+        "x": 315.8709764477181,
+        "y": 631.5049873523559
+      },
+      "data": {
+        "name": "DM",
+        "category": "steering",
+        "type": "dichroic_mirror",
+        "edgeWavelength": 900,
+        "mirrorType": "LP",
+        "beamIncomingDir": {
+          "dx": 0.5000000000000001,
+          "dy": -0.8660254037844386
+        },
+        "rotation": 300
+      }
+    },
+    {
+      "id": "node_1787719017529_6",
+      "type": "optical",
+      "position": {
+        "x": 713.7623299232945,
+        "y": 216.8755980126891
+      },
+      "data": {
+        "name": "Cat-eye",
+        "category": "steering",
+        "type": "retroreflector",
+        "reflectivity": 99.5,
+        "focalLength": 100,
+        "rotation": 330,
+        "beamIncomingDir": {
+          "dx": 0.8660254037844384,
+          "dy": -0.5000000000000004
+        }
+      }
+    },
+    {
+      "id": "paste_1787719043327_3",
+      "type": "optical",
+      "position": {
+        "x": 315.80339583795137,
+        "y": 68.64961105709328
+      },
+      "data": {
+        "name": "MOT+Imaging+LGM",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 780,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 60,
+        "showLabel": true,
+        "locked": false,
+        "groupId": "grp_1787939661630_2"
+      }
+    },
+    {
+      "id": "node_1787719101523_7",
+      "type": "optical",
+      "position": {
+        "x": 619.5451446098086,
+        "y": 595.3506501787094
+      },
+      "data": {
+        "name": "Cat-eye",
+        "category": "steering",
+        "type": "retroreflector",
+        "reflectivity": 99.5,
+        "focalLength": 100,
+        "rotation": 60,
+        "beamIncomingDir": {
+          "dx": 0.5000000000000001,
+          "dy": 0.8660254037844386
+        },
+        "groupId": "grp_1787939661630_2"
+      }
+    },
+    {
+      "id": "node_1787720013449_15",
+      "type": "optical",
+      "position": {
+        "x": 122.3902629230699,
+        "y": 268.5946818725452
+      },
+      "data": {
+        "name": "PD",
+        "category": "detection",
+        "type": "photodiode",
+        "bandwidth": 100,
+        "signalFactor": 1,
+        "rotation": 120,
+        "beamIncomingDir": {
+          "dx": -0.4999999999999998,
+          "dy": 0.8660254037844387
+        }
+      }
+    },
+    {
+      "id": "paste_1787720015813_6",
+      "type": "optical",
+      "position": {
+        "x": 193.2964172015931,
+        "y": 300.5295267289166
+      },
+      "data": {
+        "name": "PD",
+        "category": "detection",
+        "type": "photodiode",
+        "bandwidth": 100,
+        "signalFactor": 1,
+        "rotation": 120,
+        "beamIncomingDir": {
+          "dx": -0.4999999999999998,
+          "dy": 0.8660254037844387
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787720018085_7",
+      "type": "optical",
+      "position": {
+        "x": 618.6340907047002,
+        "y": 106.8231567235141
+      },
+      "data": {
+        "name": "PD",
+        "category": "detection",
+        "type": "photodiode",
+        "bandwidth": 100,
+        "signalFactor": 1,
+        "rotation": 300,
+        "beamIncomingDir": {
+          "dx": 0.5000000000000001,
+          "dy": -0.8660254037844386
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787720048900_9",
+      "type": "optical",
+      "position": {
+        "x": 54.35408642045921,
+        "y": 230.5164474957814
+      },
+      "data": {
+        "name": "PD",
+        "category": "detection",
+        "type": "photodiode",
+        "bandwidth": 100,
+        "signalFactor": 1,
+        "rotation": 120,
+        "beamIncomingDir": {
+          "dx": -0.4999999999999998,
+          "dy": 0.8660254037844387
+        },
+        "locked": false
+      }
+    },
+    {
+      "id": "node_1787939175737_1",
+      "type": "optical",
+      "position": {
+        "x": 384.8701613386998,
+        "y": 670.1975399667064
+      },
+      "data": {
+        "name": "Drive",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 780,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 210,
+        "showLabel": true
+      }
+    },
+    {
+      "id": "node_1787939249247_2",
+      "type": "optical",
+      "position": {
+        "x": 945.0942647199104,
+        "y": 617.554262493638
+      },
+      "data": {
+        "name": "Side Drive",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 780,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 210,
+        "showLabel": true
+      }
+    },
+    {
+      "id": "node_1787939292754_3",
+      "type": "optical",
+      "position": {
+        "x": 725.1832898361073,
+        "y": 491.14150119027323
+      },
+      "data": {
+        "name": "DM",
+        "category": "steering",
+        "type": "dichroic_mirror",
+        "edgeWavelength": 650,
+        "mirrorType": "LP",
+        "beamIncomingDir": {
+          "dx": -0.4999999999999998,
+          "dy": 0.8660254037844387
+        },
+        "rotation": 210
+      }
+    },
+    {
+      "id": "node_1787939325836_4",
+      "type": "optical",
+      "position": {
+        "x": 823.0868020250872,
+        "y": 321.56764383952117
+      },
+      "data": {
+        "name": "Rydberg 1",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 420,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 120,
+        "showLabel": true
+      }
+    },
+    {
+      "id": "paste_1787939437687_1",
+      "type": "optical",
+      "position": {
+        "x": 784.8731786881596,
+        "y": 525.0505753433525
+      },
+      "data": {
+        "name": "DM",
+        "category": "steering",
+        "type": "dichroic_mirror",
+        "edgeWavelength": 787,
+        "mirrorType": "SP",
+        "beamIncomingDir": {
+          "dx": -0.8660254037844386,
+          "dy": -0.5000000000000001
+        },
+        "rotation": 210,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787939445092_2",
+      "type": "optical",
+      "position": {
+        "x": 848.9355874112578,
+        "y": 411.98796618358944
+      },
+      "data": {
+        "name": "Optical Pumpng",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 795,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 120,
+        "showLabel": true,
+        "locked": false
+      }
+    },
+    {
+      "id": "node_1787939512750_6",
+      "type": "optical",
+      "position": {
+        "x": 243.63030737824414,
+        "y": 213.34867160036498
+      },
+      "data": {
+        "name": "DM",
+        "category": "steering",
+        "type": "dichroic_mirror",
+        "edgeWavelength": 650,
+        "mirrorType": "LP",
+        "beamIncomingDir": {
+          "dx": -0.8660254037844386,
+          "dy": -0.5000000000000001
+        },
+        "rotation": 30
+      }
+    },
+    {
+      "id": "paste_1787939530941_3",
+      "type": "optical",
+      "position": {
+        "x": 177.66511171103477,
+        "y": 172.855835391103
+      },
+      "data": {
+        "name": "DM",
+        "category": "steering",
+        "type": "dichroic_mirror",
+        "edgeWavelength": 787,
+        "mirrorType": "LP",
+        "beamIncomingDir": {
+          "dx": 0.8660254037844387,
+          "dy": 0.49999999999999994
+        },
+        "rotation": 30,
+        "locked": false
+      }
+    },
+    {
+      "id": "paste_1787939575637_5",
+      "type": "optical",
+      "position": {
+        "x": 110.14962018330905,
+        "y": 133.87574818310068
+      },
+      "data": {
+        "name": "DM",
+        "category": "steering",
+        "type": "dichroic_mirror",
+        "edgeWavelength": 900,
+        "mirrorType": "LP",
+        "beamIncomingDir": {
+          "dx": 0.8660254037844387,
+          "dy": 0.49999999999999994
+        },
+        "rotation": 30,
+        "locked": false
+      }
+    },
+    {
+      "id": "node_1787939591199_7",
+      "type": "optical",
+      "position": {
+        "x": 1.0838094198000405,
+        "y": 70.90657297940399
+      },
+      "data": {
+        "name": "Rydberg 2",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 1013,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 30,
+        "showLabel": true
+      }
+    },
+    {
+      "id": "paste_1787939729298_6",
+      "type": "optical",
+      "position": {
+        "x": 809.2043018740915,
+        "y": 478.73654456601105
+      },
+      "data": {
+        "name": "DM",
+        "category": "steering",
+        "type": "dichroic_mirror",
+        "edgeWavelength": 900,
+        "mirrorType": "SP",
+        "beamIncomingDir": {
+          "dx": -0.4999999999999998,
+          "dy": 0.8660254037844387
+        },
+        "rotation": 210,
+        "locked": false
+      }
+    },
+    {
+      "id": "node_1787939860093_10",
+      "type": "optical",
+      "position": {
+        "x": 488.58342510612323,
+        "y": 710.2261417967682
+      },
+      "data": {
+        "name": "D2 Pushout",
+        "category": "fiber",
+        "type": "fiber_launcher",
+        "focalLength": 11,
+        "wavelength": 780,
+        "outputPower": 10,
+        "polarization": "H",
+        "waist": 1100,
+        "mSquared": 1,
+        "rotation": 270,
+        "showLabel": true
+      }
+    },
+    {
+      "id": "node_1787940146137_11",
+      "type": "optical",
+      "position": {
+        "x": 916.311061819903,
+        "y": 540.5746612527538
+      },
+      "data": {
+        "name": "PD",
+        "category": "detection",
+        "type": "photodiode",
+        "bandwidth": 100,
+        "signalFactor": 1,
+        "rotation": 30,
+        "beamIncomingDir": {
+          "dx": 0.8660254037844387,
+          "dy": 0.49999999999999994
+        }
+      }
+    }
+  ],
+  "edges": []
+}
