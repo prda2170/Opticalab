@@ -1,7 +1,7 @@
 {
-  "version": "1.2",
+  "version": "1.3",
   "metadata": {
-    "created": "2026-09-01T21:19:16.155Z",
+    "created": "2026-09-02T01:43:53.131Z",
     "app": "OpticaLab"
   },
   "nodes": [
@@ -101,15 +101,16 @@
           "dx": 1,
           "dy": 0
         },
-        "showLabel": true
+        "showLabel": true,
+        "deflectSide": "cw"
       }
     },
     {
       "id": "node_1786900419029_6",
       "type": "optical",
       "position": {
-        "x": 617.5340599814739,
-        "y": 195.8249969482422
+        "x": 651.9806752919271,
+        "y": 224.8064857018664
       },
       "data": {
         "name": "Cat-eye",
@@ -118,17 +119,18 @@
         "reflectivity": 99.5,
         "focalLength": 100,
         "beamIncomingDir": {
-          "dx": 1,
-          "dy": 0
-        }
+          "dx": 0.9659258262890683,
+          "dy": 0.25881904510252074
+        },
+        "rotation": 15
       }
     },
     {
       "id": "node_1786900431447_7",
       "type": "optical",
       "position": {
-        "x": 587.5340599814739,
-        "y": 183.3249969482422
+        "x": 628.8097221301568,
+        "y": 206.04579090395794
       },
       "data": {
         "name": "λ/4",
@@ -136,10 +138,11 @@
         "type": "qwp",
         "fastAxisAngle": 45,
         "beamIncomingDir": {
-          "dx": 1,
-          "dy": 0
+          "dx": 0.9659258262890683,
+          "dy": 0.25881904510252074
         },
-        "showLabel": false
+        "showLabel": false,
+        "rotation": 15
       }
     },
     {
@@ -468,8 +471,8 @@
       "id": "node_1786901584010_29",
       "type": "optical",
       "position": {
-        "x": 527.7862002015013,
-        "y": -40.96120233008209
+        "x": 549.2380260308126,
+        "y": -41.216577293503065
       },
       "data": {
         "name": "AOM",
@@ -491,8 +494,8 @@
       "id": "node_1786901594888_30",
       "type": "optical",
       "position": {
-        "x": 589.4584152910347,
-        "y": -56.08522385301845
+        "x": 650.961881180365,
+        "y": -32.27494522618361
       },
       "data": {
         "name": "λ/4",
@@ -500,18 +503,19 @@
         "type": "qwp",
         "fastAxisAngle": 45,
         "beamIncomingDir": {
-          "dx": 1,
-          "dy": 0
+          "dx": 0.9659258262890683,
+          "dy": 0.25881904510252074
         },
-        "showLabel": false
+        "showLabel": false,
+        "rotation": 15
       }
     },
     {
       "id": "node_1786901611464_31",
       "type": "optical",
       "position": {
-        "x": 612.9813957812885,
-        "y": -41.96203489278741
+        "x": 681.4556899732405,
+        "y": -12.44298493340209
       },
       "data": {
         "name": "Cat-eye",
@@ -520,9 +524,10 @@
         "reflectivity": 99.5,
         "focalLength": 100,
         "beamIncomingDir": {
-          "dx": 1,
-          "dy": 0
-        }
+          "dx": 0.9659258262890683,
+          "dy": 0.25881904510252074
+        },
+        "rotation": 15
       }
     },
     {
@@ -550,7 +555,7 @@
       "type": "optical",
       "position": {
         "x": 398.8700655038491,
-        "y": -82.70553057561011
+        "y": -78.22484384960438
       },
       "data": {
         "name": "M",
@@ -591,7 +596,7 @@
       "type": "optical",
       "position": {
         "x": 303.5045058584322,
-        "y": -82.70553057561011
+        "y": -78.22484384960438
       },
       "data": {
         "name": "D1 LGM",
@@ -650,7 +655,7 @@
       "id": "node_1786941612683_5",
       "type": "optical",
       "position": {
-        "x": 528.4982535375548,
+        "x": 549.9500793668661,
         "y": -160.9245636681788
       },
       "data": {
@@ -673,8 +678,8 @@
       "id": "node_1786941625820_6",
       "type": "optical",
       "position": {
-        "x": 590.1056861118234,
-        "y": -174.9245636681788
+        "x": 676.4205246756779,
+        "y": -145.9679598315979
       },
       "data": {
         "name": "λ/4",
@@ -682,18 +687,19 @@
         "type": "qwp",
         "fastAxisAngle": 45,
         "beamIncomingDir": {
-          "dx": 1,
-          "dy": 0
+          "dx": 0.9659258262890683,
+          "dy": 0.25881904510252074
         },
-        "showLabel": false
+        "showLabel": false,
+        "rotation": 15
       }
     },
     {
       "id": "node_1786941649156_7",
       "type": "optical",
       "position": {
-        "x": 613.9893979872056,
-        "y": -160.9245636681788
+        "x": 701.7615468337411,
+        "y": -126.62579679861295
       },
       "data": {
         "name": "Cat-eye",
@@ -702,9 +708,10 @@
         "reflectivity": 99.5,
         "focalLength": 100,
         "beamIncomingDir": {
-          "dx": 1,
-          "dy": 0
-        }
+          "dx": 0.9659258262890683,
+          "dy": 0.25881904510252074
+        },
+        "rotation": 15
       }
     },
     {
@@ -731,8 +738,8 @@
       "id": "node_1786941748251_9",
       "type": "optical",
       "position": {
-        "x": 396.9656142754733,
-        "y": -201.97404998486778
+        "x": 397.64112131993386,
+        "y": -204.49507659566513
       },
       "data": {
         "name": "M",
@@ -752,7 +759,7 @@
       "type": "optical",
       "position": {
         "x": 317.0666752894902,
-        "y": -201.97404998486778
+        "y": -204.49507659566513
       },
       "data": {
         "name": "D1 OP",
@@ -779,16 +786,16 @@
         "name": "P",
         "category": "utility",
         "type": "power_probe",
-        "labelDx": -40,
-        "labelDy": -46
+        "labelDx": -28,
+        "labelDy": -64
       }
     },
     {
       "id": "node_1787021522049_4",
       "type": "power_probe",
       "position": {
-        "x": 361.34071180492725,
-        "y": -69.70553057561011
+        "x": 348.2610257769668,
+        "y": -65.22484384960438
       },
       "data": {
         "name": "P",
@@ -803,7 +810,7 @@
       "type": "power_probe",
       "position": {
         "x": 371.6789969999006,
-        "y": -188.97404998486778
+        "y": -191.49507659566513
       },
       "data": {
         "name": "P",
@@ -831,6 +838,115 @@
         "fillOpacity": 0.08,
         "caption": "MTS Lock",
         "captionCorner": "tr"
+      }
+    },
+    {
+      "id": "node_1788313203942_1",
+      "type": "optical",
+      "position": {
+        "x": 642.6661618523663,
+        "y": -45.216577293503065
+      },
+      "data": {
+        "name": "BB",
+        "category": "conditioning",
+        "type": "beam_block",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "paste_1788313240593_1",
+      "type": "optical",
+      "position": {
+        "x": 488.82381827995425,
+        "y": -66.75395352101475
+      },
+      "data": {
+        "name": "BB",
+        "category": "conditioning",
+        "type": "beam_block",
+        "beamIncomingDir": {
+          "dx": -0.9659258262890683,
+          "dy": -0.25881904510252074
+        },
+        "locked": false,
+        "rotation": 195
+      }
+    },
+    {
+      "id": "paste_1788313295178_2",
+      "type": "optical",
+      "position": {
+        "x": 644.0715629168839,
+        "y": -164.9245636681788
+      },
+      "data": {
+        "name": "BB",
+        "category": "conditioning",
+        "type": "beam_block",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        },
+        "locked": false,
+        "rotation": 0
+      }
+    },
+    {
+      "id": "paste_1788313299226_3",
+      "type": "optical",
+      "position": {
+        "x": 488.4334734040938,
+        "y": -186.7573266063103
+      },
+      "data": {
+        "name": "BB",
+        "category": "conditioning",
+        "type": "beam_block",
+        "beamIncomingDir": {
+          "dx": -0.9659258262890683,
+          "dy": -0.25881904510252074
+        },
+        "locked": false,
+        "rotation": 195
+      }
+    },
+    {
+      "id": "node_1788313376865_2",
+      "type": "optical",
+      "position": {
+        "x": 622.013565067631,
+        "y": 192.8249969482422
+      },
+      "data": {
+        "name": "BB",
+        "category": "conditioning",
+        "type": "beam_block",
+        "beamIncomingDir": {
+          "dx": 1,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "node_1788313384937_3",
+      "type": "optical",
+      "position": {
+        "x": 401.2469178940459,
+        "y": 154.03627600321087
+      },
+      "data": {
+        "name": "BB",
+        "category": "conditioning",
+        "type": "beam_block",
+        "rotation": 195,
+        "beamIncomingDir": {
+          "dx": -0.9659258262890683,
+          "dy": -0.25881904510252074
+        }
       }
     }
   ],
