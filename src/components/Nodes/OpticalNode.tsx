@@ -4,7 +4,7 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import type { OpticalNodeData } from '../../types/components';
 import { CATEGORY_COLORS } from '../../types/components';
 import { getNodeIcon, LaserBoxSVG } from './NodeIcons';
-import { getNodeGeometry, artworkOf, sizeOf } from '../../utils/nodeGeometry';
+import { getNodeGeometry, sizeOf, occupiedBox, artworkFor } from '../../utils/nodeGeometry';
 import { labelLayout, type LabelLayout } from '../../utils/labelLayout';
 import { CANVAS_BOX, boxFill, labelColour } from '../../utils/canvasStyle';
 import { labelDistance, labelHalfExtents, DEFAULT_LABEL_SIDE } from '../../physics/labelPlacement';
@@ -279,11 +279,13 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
   // the node doesn't re-render on every trace (zustand v5 has no equality argument).
   const incidentPower   = useLayout(s => incidentPowerOf(s.nodeArrivals.get(id)));
   const rotation        = (data as { rotation?: number }).rotation ?? 0;
-  const geometry        = getNodeGeometry(data.type, rotation);
+  // Per instance, not per type: a beam block comes in two sizes, and the router measures the
+  // instance — a renderer drawing the other one would sit off the beam.
+  const geometry        = occupiedBox(data, rotation);
   // Unrotated size, i.e. the shape of the artwork before it is turned. Icon sizing must
   // come from this rather than the occupied box: a turned symbol's box grows (at 45° a
   // 90x66 laser occupies 110x110), and sizing the artwork from that would inflate it.
-  const artwork         = artworkOf(data.type);
+  const artwork         = artworkFor(data);
   // How big the square symbol artwork is drawn. Rotation-invariant by construction.
   const symbolIconSize  = Math.min(artwork.width, artwork.height) + 4;
 

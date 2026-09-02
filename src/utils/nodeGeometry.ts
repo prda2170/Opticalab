@@ -12,7 +12,7 @@
 //   • **body box** — the *optical* extent a beam is trimmed to, which can be narrower
 //     than the artwork (a waveplate is 12 px of glass in a 32 px box). In the
 //     component's own frame, like the artwork.
-import type { OpticalNodeData } from '../types/components';
+import type { BlockSize, OpticalNodeData } from '../types/components';
 import { chamberSpec, circumradiusPx } from '../physics/chamber';
 import { unitAt, rotateBy, dot, DIR_STEP_DEG, MIRROR_STEP_DEG, type Vec2 } from '../physics/geometry';
 
@@ -51,6 +51,7 @@ const GEOMETRIES: Partial<Record<OpticalNodeData['type'], NodeGeometry>> = {
   qwp:               { width: 32, height: 72, symbolType: 'symbol', beamFaceHalf: 6 },
   nd_filter:         { width: 24, height: 68, symbolType: 'symbol', beamFaceHalf: 3 },
   iris:              { width: 44, height: 44, symbolType: 'symbol' },
+  // The standard block. A small one is the same drawing at a smaller size — see `BLOCK_SIZES`.
   beam_block:        { width: 28, height: 52, symbolType: 'symbol', beamFaceHalf: 5 },
 
   // ── Steering & Splitting ─────────────────────────────────────────────────
@@ -116,6 +117,28 @@ const GEOMETRIES: Partial<Record<OpticalNodeData['type'], NodeGeometry>> = {
 const FALLBACK: NodeGeometry = { width: 60, height: 36, symbolType: 'box' };
 
 /**
+ * The two beam blocks, as parts rather than as pixels.
+ *
+ * Both are the same glyph — a symbol node draws a square icon of `min(w, h) + 4`, so a smaller
+ * box is a smaller and correspondingly thinner paddle. At the 40 px/inch grid the standard one
+ * draws about 7 × 15 mm (a Thorlabs-ish anodised block) and the small one about 4 × 9 mm (a
+ * blackened tab). `beamFaceHalf` scales with the icon, so the glyph, the box and the beam trim
+ * stay one drawing: it is `iconSize × (0.5 − 8/24)` for the rect the glyph puts at x = 8.
+ *
+ * The size is a drawing. It does not change what the block catches — that is proximity to the
+ * beam (`BEAM_SNAP_DIST`) — so shrinking one never lets a beam through it.
+ */
+const BLOCK_SIZES: Record<BlockSize, NodeGeometry> = {
+  standard: { width: 28, height: 52, symbolType: 'symbol', beamFaceHalf: 5 },
+  small:    { width: 16, height: 30, symbolType: 'symbol', beamFaceHalf: 3 },
+};
+
+/** Which block this is, defaulting to the standard one — including for every saved layout. */
+export function blockSizeOf(data: OpticalNodeData): BlockSize {
+  return (data as { blockSize?: unknown }).blockSize === 'small' ? 'small' : 'standard';
+}
+
+/**
  * The component's artwork in its own frame, unrotated. Width is along its optical axis.
  *
  * Anything that needs a size *independent of rotation* — how big to draw the icon, how
@@ -123,6 +146,32 @@ const FALLBACK: NodeGeometry = { width: 60, height: 36, symbolType: 'box' };
  */
 export function artworkOf(type: OpticalNodeData['type']): NodeGeometry {
   return GEOMETRIES[type] ?? FALLBACK;
+}
+
+/**
+ * The artwork of *this* node, which is not always its type's.
+ *
+ * Anything holding a real node should ask this rather than `artworkOf`: a beam block comes in
+ * two sizes, and a renderer that drew one size while the router measured the other would put
+ * the drawn component somewhere the beams are not — the same class of bug the vacuum chamber
+ * turned up.
+ */
+export function artworkFor(data: OpticalNodeData): NodeGeometry {
+  if (data.type === 'beam_block') return BLOCK_SIZES[blockSizeOf(data)];
+  return artworkOf(data.type);
+}
+
+/** The axis-aligned box an artwork spans once turned by `rotation`. */
+function inflate(base: NodeGeometry, rotation: number): NodeGeometry {
+  if (rotation % 180 === 0) return base;
+  const { dx: cos, dy: sin } = unitAt(rotation);
+  const c = Math.abs(cos);
+  const s = Math.abs(sin);
+  return {
+    ...base,
+    width:  base.width * c + base.height * s,
+    height: base.width * s + base.height * c,
+  };
 }
 
 /**
@@ -138,16 +187,7 @@ export function artworkOf(type: OpticalNodeData['type']): NodeGeometry {
  * as though it were horizontal, and its dump lane left the side of an unturned box.
  */
 export function getNodeGeometry(type: OpticalNodeData['type'], rotation = 0): NodeGeometry {
-  const base = artworkOf(type);
-  if (rotation % 180 === 0) return base;
-  const { dx: cos, dy: sin } = unitAt(rotation);
-  const c = Math.abs(cos);
-  const s = Math.abs(sin);
-  return {
-    ...base,
-    width:  base.width * c + base.height * s,
-    height: base.width * s + base.height * c,
-  };
+  return inflate(artworkOf(type), rotation);
 }
 
 /**
@@ -160,7 +200,15 @@ export function getNodeGeometry(type: OpticalNodeData['type'], rotation = 0): No
  * trimming a crosswise beam by the axial figure would draw it inside the glass.
  */
 export function bodyBox(type: OpticalNodeData['type']): { halfAlong: number; halfCross: number } {
-  const g = artworkOf(type);
+  return bodyOf(artworkOf(type));
+}
+
+/** The optical body of *this* node, which is its own where its artwork is. */
+export function bodyBoxFor(data: OpticalNodeData): { halfAlong: number; halfCross: number } {
+  return bodyOf(artworkFor(data));
+}
+
+function bodyOf(g: NodeGeometry): { halfAlong: number; halfCross: number } {
   return {
     halfAlong: g.beamFaceHalf ?? g.width / 2,
     halfCross: g.height / 2,
@@ -255,7 +303,7 @@ export function occupiedBox(data: OpticalNodeData, rotation = 0): NodeGeometry {
     const across = 2 * circumradiusPx(spec.inradiusPx, spec.sides);
     return { ...artworkOf('vacuum_chamber'), width: across, height: across };
   }
-  return getNodeGeometry(data.type, rotation);
+  return inflate(artworkFor(data), rotation);
 }
 
 export function sizeOf(node: { data?: { type?: string; w?: unknown; h?: unknown; rotation?: number } }): { width: number; height: number } {

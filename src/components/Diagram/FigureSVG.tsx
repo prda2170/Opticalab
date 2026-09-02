@@ -18,7 +18,7 @@ import { useWorkspace } from '../../store/workspaceStore';
 import { wavelengthToRGB, wavelengthDashArray } from '../../utils/colormap';
 import { getNodeIcon } from '../Nodes/NodeIcons';
 import { iconDimensions } from '../../utils/iconMetrics';
-import { getNodeGeometry, artworkOf, sizeOf } from '../../utils/nodeGeometry';
+import { getNodeGeometry, sizeOf, occupiedBox, artworkFor } from '../../utils/nodeGeometry';
 import { CATEGORY_COLORS } from '../../types/components';
 import type { OpticalNodeData, PowerProbeData, RegionData, NoteData } from '../../types/components';
 import type { BeamSegment } from '../../types/beam';
@@ -258,7 +258,7 @@ const Component: React.FC<{
 }> = ({ node, dark, labelScale, signal, labelSide }) => {
   const data = node.data;
   const rotation = data.rotation ?? 0;
-  const g = getNodeGeometry(data.type, rotation);
+  const g = occupiedBox(data, rotation);
   const cx = node.position.x + g.width / 2;
   const cy = node.position.y + g.height / 2;
 
@@ -266,7 +266,7 @@ const Component: React.FC<{
   const isSymbol = g.symbolType === 'symbol';
   // From the artwork, not the occupied box: a turned symbol's box grows, and the icon must
   // not grow with it. The canvas sizes its icons the same way.
-  const art = artworkOf(data.type);
+  const art = artworkFor(data);
   const iconSize = isSymbol
     ? Math.min(art.width, art.height) + 4
     : Math.min(g.width, g.height) - 6;

@@ -10,7 +10,7 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { OpticalNodeData, BeamEdgeData } from '../types/components';
 import type { BeamSegment, BeamState } from '../types/beam';
-import { getNodeGeometry, artworkOf, bodyBox, occupiedBox, SURFACE_AT_45 } from '../utils/nodeGeometry';
+import { getNodeGeometry, artworkOf, bodyBox, bodyBoxFor, occupiedBox, SURFACE_AT_45 } from '../utils/nodeGeometry';
 import { isOpticalNode } from '../types/components';
 import {
   advanceBeam, componentOutputs, emitterBeam, isEmitter, outputPortFor, fiberInputOf,
@@ -232,9 +232,15 @@ function emitterOrigin(node: Node<OpticalNodeData>, rotation: number): Pt {
  * ending well inside the artwork).
  */
 export function faceHalf(type: OpticalNodeData['type'], rotation: number, dir: Vec2): number {
-  const body  = bodyBox(type);
-  const local = rotateBy(dir, -rotation);
-  return boxHalfExtent(body.halfAlong, body.halfCross, local);
+  return faceHalfOf(bodyBox(type), rotation, dir);
+}
+
+function faceHalfOf(
+  body: { halfAlong: number; halfCross: number },
+  rotation: number,
+  dir: Vec2,
+): number {
+  return boxHalfExtent(body.halfAlong, body.halfCross, rotateBy(dir, -rotation));
 }
 
 /**
@@ -264,7 +270,8 @@ export function bodyHalfExtentFor(
     // Into the chamber's own frame, where the flats are.
     return polygonHalfExtent(spec.inradiusPx, spec.sides, angleOf(dir) - rotation);
   }
-  return faceHalf(data.type, rotation, dir);
+  // Per instance, not per type: a beam block comes in two sizes.
+  return faceHalfOf(bodyBoxFor(data), rotation, dir);
 }
 
 function trimFor(

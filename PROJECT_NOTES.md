@@ -162,6 +162,12 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   cells were the one two-lane device, and both their orders are real angled beams as of 1.3 (see
   the diffraction entry in the change log). `OutputPort.lane` and the per-lane hit test remain,
   because a component with a genuine second axis would slot straight back in.
+- **A node's artwork can be its own, not its type's.** `artworkFor(data)` is the per-instance
+  answer and `artworkOf(type)` the per-type one; `occupiedBox` and `bodyBoxFor` are built on the
+  first, and anything holding a real node should ask those. Two components use it: a vacuum
+  chamber (sides, inradius) and a beam block (two named sizes, `BLOCK_SIZES`). A renderer that
+  drew one size while the router measured another would draw the component off its own beam —
+  which is exactly the bug the chamber turned up.
 - **An acousto-optic cell puts two real beams into the room.** `physics/diffraction.ts` owns the
   rule: the 0th order carries straight on, the diffracted order leaves `DEFAULT_DEFLECT_DEG`
   (15°, a lattice angle) off it, and neither is absorbed inside the cell — you block whichever
@@ -557,6 +563,43 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-09-02 — beam blocks come in two sizes
+
+`blockSize: 'standard' | 'small'` on a beam block. The standard one is unchanged, and every
+saved layout reads as standard, so this is additive — no migration and no format bump.
+
+**One glyph, two sizes.** A symbol node draws a square icon of `min(w, h) + 4`, so a smaller box
+is automatically a smaller *and* proportionally thinner paddle: box 28×52 → 16×30, icon 32 → 20,
+drawn paddle 10.7×24 px → 6.7×15 px. On the 40 px/inch grid that is roughly 7×15 mm (an anodised
+block) against 4×9 mm (a blackened tab or a blade). `beamFaceHalf` is re-derived per size — 5 px
+against 3 px — or a small block would be drawn small and trimmed as though it were the big one,
+leaving the beam stopping in mid-air.
+
+**The seam is `artworkFor(data)`**, the per-instance sibling of `artworkOf(type)`. `occupiedBox`
+and the new `bodyBoxFor` are expressed through it, and both renderers plus the tracer's trim now
+go that way, so the drawn size and the measured size cannot come apart. That is the same class of
+bug the vacuum chamber turned up (beams sailing through a node measured at the wrong size), which
+is why it is worth a named function rather than a `data.type === 'beam_block'` in four files.
+
+**The size is a drawing, and the panel says so.** What a block catches is proximity to the beam
+(`BEAM_SNAP_DIST`, 10 px), not its height, so shrinking one never lets a beam through it. The
+honest edge of that: the small paddle is drawn 7.5 px either side of centre, less than the 10 px
+capture window, so a *manually placed* block can absorb a beam that visibly passes a couple of px
+past its end. In a laid-out figure it does not arise — the first beam to reach a block snaps the
+block onto it, so the beam hits the middle.
+
+**Not done:** `labelDistance` and the label-obstacle boxes still ask per *type*, so a small
+block's name sits ~6 px further out than it needs to and its obstacle box reserves the standard
+28×52. Both err on the side of more clearance, which is the harmless direction, and fixing it
+means threading node data through `labelDistance` and its twenty-odd test call sites.
+
+9 tests added (`blockSize.test.ts`): the default for old layouts and for junk, the glyph shrinking
+in both dimensions while keeping its proportions, the trim staying in step with the glyph, the
+occupied box at 0°/90°/45° and the body extent at every lattice angle, the per-type answers left
+alone, and through the tracer — absorbing everything either way, the beam reaching 2 px further
+into a small one, capture by proximity rather than size, and the round trip through a layout file.
+**652 tests total.**
 
 ### 2026-09-01 — both acousto-optic orders are real beams
 

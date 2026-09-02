@@ -515,7 +515,19 @@ function renderFields(
     case 'beam_profiler': return <>
       <Row label="Sensor Size" unit="mm"><Num value={data.sensorSize} onChange={v => u({ sensorSize: v })} min={0.1} step={0.1} /></Row>
     </>;
-    case 'beam_block': return <Hint>Terminates beam — no output.</Hint>;
+    case 'beam_block': return <>
+      <Row label="Size">
+        <Sel value={data.blockSize ?? 'standard'} onChange={e => u({ blockSize: e.target.value })}>
+          <option value="standard">Standard</option>
+          <option value="small">Small</option>
+        </Sel>
+      </Row>
+      <Hint>
+        Terminates beam — no output. Size is the drawing: a small block is a blackened tab or a
+        blade rather than a paddle, for when the bench is crowded. It changes nothing about what
+        the block catches, which is set by how close the beam passes.
+      </Hint>
+    </>;
     case 'shg_crystal': return <>
       <Row label="Geometry">
         <Sel value={data.geometry} onChange={e => u({ geometry: e.target.value })}>

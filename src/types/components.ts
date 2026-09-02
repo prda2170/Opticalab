@@ -159,8 +159,18 @@ export interface IrisData extends BaseNodeData {
   apertureDiameter: number; // mm
 }
 
+/**
+ * Which of the two beam blocks a bench has: the anodised paddle, or something much smaller —
+ * a blackened tab or a razor blade on a post, for a crowded breadboard.
+ *
+ * A *drawn* size, not an aperture: what a block catches is set by how close the beam passes
+ * (`BEAM_SNAP_DIST`), not by how tall it is. See `BLOCK_SIZES` in `utils/nodeGeometry`.
+ */
+export type BlockSize = 'standard' | 'small';
+
 export interface BeamBlockData extends BaseNodeData {
   type: 'beam_block';
+  blockSize?: BlockSize;
 }
 
 // ─── Steering & Splitting ────────────────────────────────────────────────────
