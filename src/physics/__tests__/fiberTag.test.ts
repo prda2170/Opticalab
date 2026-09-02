@@ -3,7 +3,9 @@ import type { Node } from '@xyflow/react';
 import { autoRoute } from '../autoRoute';
 import { fiberFedBeam, fiberInputOf, MIN_POWER_MW } from '../propagate';
 import { getNodeGeometry } from '../../utils/nodeGeometry';
-import { layoutToJSON, layoutFromJSON, LAYOUT_VERSION } from '../../utils/export';
+import { diffractedDirection } from '../diffraction';
+import { unitAt } from '../geometry';
+import { layoutToJSON, layoutFromJSON } from '../../utils/export';
 import type { OpticalNodeData } from '../../types/components';
 import type { BeamState } from '../../types/beam';
 
@@ -33,9 +35,22 @@ const aom = (id = 'A1', mhz = 160) => at(id, {
   type: 'aom', category: 'modulation', rfFrequency: mhz, diffractionEfficiency: 100, order: 1,
 }, 500, AXIS);
 
-const coupler = (id = 'FC1', eta = 70, cx = 800) => at(id, {
+const coupler = (id = 'FC1', eta = 70, cx = 800, cy = AXIS) => at(id, {
   type: 'fiber_coupler', couplingEfficiency: eta, inputNA: 0.12, focalLength: 11,
-}, cx, AXIS);
+}, cx, cy);
+
+/**
+ * A cell and a coupler on its **diffracted** order.
+ *
+ * Both orders are real beams now, and it is the diffracted one that carries the RF shift these
+ * tests are about — so the coupler sits on the deflected line rather than straight ahead of the
+ * cell, exactly as it would on the bench.
+ */
+const shifted = (eta = 70, mhz = 160) => {
+  const cell = aom('A1', mhz);
+  const d = diffractedDirection(unitAt(0), 0, cell.data);
+  return [cell, coupler('FC1', eta, 500 + d.dx * 300, AXIS + d.dy * 300)];
+};
 
 /** A launcher somewhere else entirely, pointing +x. */
 const launcher = (id: string, tag: string | undefined, cy: number) => at(id, {
@@ -56,7 +71,7 @@ const emitted = (segments: { sourceId: string; beam: BeamState }[], id: string) 
 
 describe('a fibre-fed output carries the light that went in', () => {
   const bench = (tag = 'FC1') => [
-    laser(), aom(), coupler(), launcher('FL1', tag, 700),
+    laser(), ...shifted(), launcher('FL1', tag, 700),
   ];
 
   it('carries the wavelength and the RF detuning', () => {
@@ -74,7 +89,7 @@ describe('a fibre-fed output carries the light that went in', () => {
   });
 
   it('tracks a change in coupling efficiency', () => {
-    const half = [laser(), aom(), coupler('FC1', 35), launcher('FL1', 'FC1', 700)];
+    const half = [laser(), ...shifted(35), launcher('FL1', 'FC1', 700)];
     expect(emitted(autoRoute(half, []).segments, 'FL1')!.power).toBeCloseTo(35, 6);
   });
 
@@ -92,7 +107,7 @@ describe('a fibre-fed output carries the light that went in', () => {
   });
 
   it('leaves an untagged launcher exactly as it was', () => {
-    const free = [laser(), aom(), coupler(), launcher('FL1', undefined, 700)];
+    const free = [laser(), ...shifted(), launcher('FL1', undefined, 700)];
     const out = emitted(autoRoute(free, []).segments, 'FL1')!;
     expect(out.wavelength).toBe(1064);
     expect(out.power).toBe(5);
@@ -105,7 +120,7 @@ describe('a fibre-fed output carries the light that went in', () => {
 describe('a fibre-fed amplifier', () => {
   it('keeps its stated output power, and carries λ and detuning', () => {
     // It is a gain stage: the pump sets the output, not the seed.
-    const nodes = [laser(), aom(), coupler(), amp('FA1', 'FC1', 700)];
+    const nodes = [laser(), ...shifted(), amp('FA1', 'FC1', 700)];
     const out = emitted(autoRoute(nodes, []).segments, 'FA1')!;
     expect(out.power).toBe(2000);
     expect(out.wavelength).toBe(780);
@@ -114,7 +129,7 @@ describe('a fibre-fed amplifier', () => {
 
   it('goes dark when its seed does, and says why', () => {
     // The whole point of tagging: unplug the arm upstream and the figure shows it.
-    const nodes = [aom(), coupler(), amp('FA1', 'FC1', 700)];   // no laser at all
+    const nodes = [...shifted(), amp('FA1', 'FC1', 700)];   // no laser at all
     const { segments, warnings } = autoRoute(nodes, []);
     expect(emitted(segments, 'FA1')).toBeUndefined();
     expect(warnings.some(w => w.nodeId === 'FA1' && /No light/i.test(w.message))).toBe(true);
@@ -225,10 +240,12 @@ describe('fiberFedBeam', () => {
 // ── Saving ────────────────────────────────────────────────────────────────────
 
 describe('the tag in the layout file', () => {
-  it('round-trips, with no format bump — it is an optional field', () => {
+  it('round-trips, and needed no format bump of its own — it is an optional field', () => {
     const nodes = [laser(), coupler(), launcher('FL1', 'FC1', 700)];
     const back = layoutFromJSON(layoutToJSON(nodes, []));
     expect(fiberInputOf(back.nodes.find(n => n.id === 'FL1')!.data)).toBe('FC1');
-    expect(LAYOUT_VERSION).toBe('1.2');
+    // A file written before tags existed still loads clean, which is the actual claim.
+    const older = JSON.stringify({ version: '1.2', nodes: [laser(), coupler()], edges: [] });
+    expect(layoutFromJSON(older).nodes).toHaveLength(2);
   });
 });

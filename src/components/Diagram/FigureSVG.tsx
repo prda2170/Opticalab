@@ -25,7 +25,7 @@ import type { BeamSegment } from '../../types/beam';
 import { formatSpot } from '../../physics/scale';
 import { formatDetuning } from '../../physics/wavelength';
 import { drawnEndpoints } from '../../physics/beamLayout';
-import { componentLanes, laneExitSign } from '../../physics/lanes';
+import { deflectSignOf } from '../../physics/diffraction';
 import { probeBeam, probeLines } from '../../physics/probe';
 import { detectorSignalLabel, incidentPower } from '../../physics/detector';
 import { labelLayout } from '../../utils/labelLayout';
@@ -316,33 +316,24 @@ const Component: React.FC<{
         {getNodeIcon(data.type, iconSize, catColor, data)}
       </g>
 
-      {/* Acousto-optics: the 0th order peeling off to its own lane, outside the body. The
-          same marker `OpticalNode` draws, so both views agree. */}
+      {/* Acousto-optics: the RF transducer, on the side opposite the deflection — phonon
+          momentum pushes the diffracted light along the acoustic propagation. Both orders are
+          real beams here, so this is the only mark the cell needs; the same one `OpticalNode`
+          draws, so the two views agree. */}
       {(data.type === 'aom' || data.type === 'aod') && (() => {
-        const lane = componentLanes(data)[1] ?? 0;
-        const dumped = (data as { dumpZeroOrder?: boolean }).dumpZeroOrder !== false;
-        // The dumped order leaves *with* the beam. A cell fed right-to-left keeps its
-        // rotation (lanes align to the beam axis, not its direction), so drawing this along
-        // +x would point it back up the beam it came from. See `laneExitSign`.
-        const s = laneExitSign(data);
+        const s = deflectSignOf(data);
+        const edge = -s * (art.height / 2);          // −kick side, in the cell's own frame
         return (
           <g transform={rotation ? `rotate(${rotation})` : undefined}>
-            <line
-              x1={s * (art.width / 2 - 16)} y1={0} x2={s * (art.width / 2)} y2={lane}
-              stroke={catColor} strokeWidth={1} strokeOpacity={0.4} strokeDasharray="2,2"
+            <rect
+              x={-art.width / 6} y={edge - (s > 0 ? 0 : 3)}
+              width={art.width / 3} height={3} rx={0.5}
+              fill={catColor} fillOpacity={0.75}
             />
             <line
-              x1={s * (art.width / 2)} y1={lane} x2={s * (art.width / 2 + 12)} y2={lane}
-              stroke={catColor} strokeWidth={1}
-              strokeOpacity={dumped ? 0.65 : 0.3}
-              strokeDasharray={dumped ? undefined : '2,2'}
+              x1={0} y1={edge + s * 3} x2={0} y2={s * (art.height / 2 - 3)}
+              stroke={catColor} strokeWidth={1} strokeOpacity={0.35} strokeDasharray="1.5,2"
             />
-            {dumped && (
-              <rect
-                x={s > 0 ? art.width / 2 + 12 : -(art.width / 2 + 12) - 4}
-                y={lane - 5} width={4} height={10} rx={0.5}
-                fill={catColor} fillOpacity={0.7} />
-            )}
           </g>
         );
       })()}

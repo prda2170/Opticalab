@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { Node } from '@xyflow/react';
+import { diffractedDirection } from '../diffraction';
 import { autoRoute, faceHalf, BEAM_SNAP_DIST } from '../autoRoute';
 import { unitAt, angleOf, snapAngle, angleDiff, normalise, dot, mirrorReflect, DIR_STEP_DEG } from '../geometry';
-import { bodyAxis, laneNormal, componentLanes, ORDER_SEPARATION_PX } from '../lanes';
+import { bodyAxis, laneNormal, componentLanes } from '../lanes';
 import { getNodeGeometry, artworkOf } from '../../utils/nodeGeometry';
 import { pxToMm } from '../scale';
 import type { OpticalNodeData } from '../../types/components';
@@ -192,16 +193,21 @@ describe('lanes on a turned component', () => {
     }
   });
 
-  it('keeps the dump lane one inch off the axis at 45°', () => {
+  it('gives every component a single axis, now that orders leave at an angle', () => {
+    // Acousto-optic cells used to declare a second lane an inch off the axis, because their
+    // two orders were drawn as parallel beams. Both orders are real angled beams now, so the
+    // lane machinery is back to one axis per component — see physics/diffraction.
     const aom = { type: 'aom', name: 'AOM', category: 'modulation', rfFrequency: 80, rfPower: 33,
       diffractionEfficiency: 80, transmission: 98, activeOrder: '+1', rotation: 45 } as OpticalNodeData;
-    const lanes = componentLanes(aom);
-    expect(lanes[0]).toBe(0);
-    expect(Math.abs(lanes[1])).toBe(ORDER_SEPARATION_PX);
-    // The offset is a distance along laneNormal, so the lane really is an inch away.
-    const n = laneNormal(45);
-    const offset = { x: n.dx * lanes[1], y: n.dy * lanes[1] };
-    expect(Math.hypot(offset.x, offset.y)).toBeCloseTo(ORDER_SEPARATION_PX, 9);
+    expect(componentLanes(aom)).toEqual([0]);
+  });
+
+  it('deflects the diffracted order off a turned cell, in its own frame', () => {
+    const aom = { type: 'aom', name: 'AOM', category: 'modulation', rfFrequency: 80, rfPower: 33,
+      diffractionEfficiency: 80, transmission: 98, activeOrder: '+1', rotation: 45 } as OpticalNodeData;
+    // A beam running along the cell's 45° axis leaves 15° off it, to the kick side.
+    const out = diffractedDirection(unitAt(45), 45, aom);
+    expect(angleOf(out)).toBeCloseTo(60, 9);
   });
 });
 

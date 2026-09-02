@@ -25,12 +25,15 @@ import {
  * `transmit` carries on; `reflect` bounces off a 45° surface; `retro` goes back the
  * way it came, whichever way that was.
  */
-export type PortKind = 'transmit' | 'reflect' | 'retro';
+export type PortKind = 'transmit' | 'reflect' | 'retro' | 'diffract';
 
 export interface OutputPort {
   /** Source handle id on the node — must match the handles declared in OpticalNode. */
   handle: string;
-  /** `transmit` continues in the incoming direction; `reflect` bounces off the surface. */
+  /**
+   * `transmit` continues in the incoming direction; `reflect` bounces off the surface;
+   * `diffract` leaves at an angle to it, which only an acousto-optic cell does.
+   */
   kind: PortKind;
   /** The fully resolved beam leaving this port. */
   beam: BeamState;
@@ -381,38 +384,36 @@ function rawOutputs(inBeam: BeamState, node: OpticalNodeData, ctx: PortContext):
     // bench drawings use, it keeps the used beam as the through-line so existing
     // layouts and chains of cells don't walk sideways, and a double-passed cell
     // still retraces its own path. See PROJECT_NOTES §4.
+    // ── Acousto-optics: two real beams out of one ────────────────────────────
+    // The 0th order carries straight on undeviated and the diffracted order leaves at an
+    // angle, both as beams you can put a block in front of. Neither is absorbed here: a cell
+    // that swallowed its own 0th order was a drawing convenience, not a bench.
     case 'aom':
     case 'aod': {
       const eta = (node.diffractionEfficiency ?? 80) / 100;
       const T   = (node.transmission ?? 100) / 100;
       const order = node.type === 'aom' ? node.activeOrder : '+1';
-      const dumpLane = ctx.entryLane === 0 ? 1 : 0;
+
+      // Straight through, unshifted, carrying whatever the cell did not diffract.
       const zeroth: OutputPort = {
         handle: 'order0',
         kind: 'transmit',
-        lane: dumpLane,
-        // Blocked inside the cell unless the user asks to route it out and block it
-        // themselves, which is what the dump lane is there for.
-        dumped: node.dumpZeroOrder !== false,
+        lane: ctx.entryLane,
         beam: { ...inBeam, power: inBeam.power * Math.max(0, T - eta) * lossF },
       };
 
-      // activeOrder '0' means the undiffracted beam is the one being used, so it
-      // propagates unshifted, straight through, and there is no diffracted output.
+      // Drive off: everything stays in the 0th order and there is no diffracted beam.
       if (order === '0') {
-        return [{
-          ...zeroth,
-          lane: ctx.entryLane,
-          dumped: false,
-          beam: { ...inBeam, power: inBeam.power * T * lossF },
-        }];
+        return [{ ...zeroth, beam: { ...inBeam, power: inBeam.power * T * lossF } }];
       }
 
+      // `activeOrder` is the RF drive and sets the sign of the shift; the side the beam
+      // leaves on is the transducer's, and lives in `deflectSide`. See physics/diffraction.
       const m = order === '-1' ? -1 : 1;
       return [
         {
           handle: 'order1',
-          kind: 'transmit',
+          kind: 'diffract',
           lane: ctx.entryLane,
           beam: {
             ...inBeam,

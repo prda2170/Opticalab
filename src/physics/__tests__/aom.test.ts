@@ -1,14 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import type { Node } from '@xyflow/react';
 import { componentOutputs, outputPortFor } from '../propagate';
-import { bodyAxis, componentLanes, laneNormal, laneExitSign, ORDER_SEPARATION_PX } from '../lanes';
+import { bodyAxis, componentLanes, laneNormal } from '../lanes';
+import { DEFAULT_DEFLECT_DEG, diffractedDirection } from '../diffraction';
+import { PX_PER_INCH } from '../scale';
 import { BEAM_SNAP_DIST } from '../autoRoute';
-import { unitAt } from '../geometry';
+import { unitAt, angleOf, mirrorReflect } from '../geometry';
 import { formatDetuning, opticalFrequencyHz, outputWavelength, C_LIGHT } from '../wavelength';
 import { autoRoute } from '../autoRoute';
 import type { OpticalNodeData } from '../../types/components';
 import type { BeamState } from '../../types/beam';
-import { getNodeGeometry } from '../../utils/nodeGeometry';
+import { getNodeGeometry, occupiedBox } from '../../utils/nodeGeometry';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -70,17 +72,20 @@ describe('carrier vs detuning', () => {
 // ── AOM ports ─────────────────────────────────────────────────────────────────
 
 describe('componentOutputs — AOM', () => {
-  it('emits a diffracted order and a dumped 0th order', () => {
+  it('emits both orders as real beams, neither of them swallowed', () => {
     const ports = componentOutputs(inBeam, aom());
     expect(ports.map(p => p.handle)).toEqual(['order1', 'order0']);
 
     const first = byHandle(ports, 'order1');
+    expect(first.kind).toBe('diffract');               // leaves at an angle
     expect(first.dumped).toBeFalsy();
     expect(first.beam.power).toBeCloseTo(80, 6);        // P·η
     expect(first.beam.detuningHz).toBe(80e6);
 
+    // A cell cannot absorb its own 0th order: it comes out, and you block it yourself.
     const zeroth = byHandle(ports, 'order0');
-    expect(zeroth.dumped).toBe(true);
+    expect(zeroth.kind).toBe('transmit');               // straight on, undeviated
+    expect(zeroth.dumped).toBeFalsy();
     expect(zeroth.beam.power).toBeCloseTo(18, 6);       // P·(T − η)
     expect(zeroth.beam.detuningHz).toBeUndefined();     // undiffracted: no shift
   });
@@ -101,7 +106,7 @@ describe('componentOutputs — AOM', () => {
     const ports = componentOutputs(inBeam, aom({ activeOrder: '0' } as Partial<OpticalNodeData>));
     expect(ports).toHaveLength(1);
     expect(ports[0].handle).toBe('order0');
-    expect(ports[0].dumped).toBe(false);
+    expect(ports[0].dumped).toBeFalsy();
     expect(ports[0].beam.power).toBeCloseTo(98, 6);     // P·T
     expect(ports[0].beam.detuningHz).toBeUndefined();
   });
@@ -155,15 +160,20 @@ describe('componentOutputs — AOM', () => {
     } as OpticalNodeData);
     expect(byHandle(ports, 'order1').beam.power).toBeCloseTo(70, 6);
     expect(byHandle(ports, 'order1').beam.detuningHz).toBe(80e6);
+    expect(byHandle(ports, 'order1').kind).toBe('diffract');
     expect(byHandle(ports, 'order0').beam.power).toBeCloseTo(28, 6);
   });
 
-  it('never resolves a handle-less wire to the dumped port', () => {
+  it('resolves a handle-less wire to the diffracted order', () => {
+    // Both orders are usable beams now, so this is a choice of default rather than the old
+    // "never wire to something that is absorbed": the diffracted order is what a wire drawn
+    // out of an AOM almost always means.
     const port = outputPortFor(inBeam, aom(), null)!;
     expect(port.handle).toBe('order1');
-    expect(port.dumped).toBeFalsy();
-    // An explicit handle still works.
-    expect(outputPortFor(inBeam, aom(), 'order0')!.dumped).toBe(true);
+    // And the 0th order is reachable, and real, when asked for by name.
+    const zeroth = outputPortFor(inBeam, aom(), 'order0')!;
+    expect(zeroth.dumped).toBeFalsy();
+    expect(zeroth.beam.power).toBeCloseTo(18, 6);
   });
 });
 
@@ -176,49 +186,68 @@ describe('lanes', () => {
     }
   });
 
-  it('gives an AOM a centre lane plus a dump lane one inch off', () => {
-    expect(componentLanes(aom())).toEqual([0, ORDER_SEPARATION_PX]);
-    // The dump lane follows the order the cell is set up for.
-    expect(componentLanes(aom({ activeOrder: '-1' } as Partial<OpticalNodeData>))).toEqual([0, -ORDER_SEPARATION_PX]);
+  it('gives an acousto-optic cell a single axis too, now its orders differ by angle', () => {
+    // The cell used to declare a second lane an inch off, because both orders were drawn as
+    // parallel beams. They diverge by DEFAULT_DEFLECT_DEG instead now.
+    expect(componentLanes(aom())).toEqual([0]);
+    expect(componentLanes(aom({ activeOrder: '-1' } as Partial<OpticalNodeData>))).toEqual([0]);
   });
 
-  it('separates lanes by more than the snap distance can bridge', () => {
-    // Otherwise a beam on one lane would capture components sitting on the other.
-    expect(ORDER_SEPARATION_PX).toBeGreaterThan(2 * BEAM_SNAP_DIST);
+  it('separates the two orders faster than the snap distance can bridge', () => {
+    // The old lanes were an inch apart everywhere, so no component could be captured by the
+    // wrong order. An angle has to earn that clearance with distance instead — this is how
+    // much: about two inches, which is closer than anything gets placed to a cell.
+    const clearAt = (2 * BEAM_SNAP_DIST) / (2 * Math.sin((DEFAULT_DEFLECT_DEG * Math.PI) / 360));
+    expect(clearAt).toBeLessThan(3 * PX_PER_INCH);
   });
 
-  it('measures lane offsets along the component, not the beam', () => {
+  it('measures a component frame along the component, not the beam', () => {
     expect(bodyAxis(0)).toEqual({ dx: 1, dy: 0 });
     expect(bodyAxis(90)).toEqual({ dx: 0, dy: 1 });
     expect(bodyAxis(180)).toEqual({ dx: -1, dy: 0 });
     expect(bodyAxis(270)).toEqual({ dx: 0, dy: -1 });
-    // A component facing +x has its lanes stacked in +y, whichever way a beam runs.
+    // A component facing +x has its transverse direction in +y, whichever way a beam runs.
+    // That is the frame an acousto-optic kick lives in, so it must not follow the beam.
     // (Was `dx: -0` — negating a zero component; `perpOf` now cleans that.)
     expect(laneNormal(0)).toEqual({ dx: 0, dy: 1 });
   });
 });
 
-describe('componentOutputs — AOM lanes', () => {
-  it('keeps the diffracted order on the entry lane and peels the 0th order off', () => {
+describe('componentOutputs — where the orders go', () => {
+  it('leaves both orders on the entry axis, and turns the diffracted one by angle', () => {
+    // Neither order steps sideways: they share an origin inside the crystal. What separates
+    // them is `kind`, which the tracer turns into a direction.
     const ports = componentOutputs(inBeam, aom(), { entryLane: 0 });
     expect(byHandle(ports, 'order1').lane).toBe(0);
-    expect(byHandle(ports, 'order0').lane).toBe(1);
-  });
-
-  it('mirrors that when the beam arrives on the dump lane', () => {
-    // The double-pass case: a return beam retraces the entry lane either way.
-    const ports = componentOutputs(inBeam, aom(), { entryLane: 1 });
-    expect(byHandle(ports, 'order1').lane).toBe(1);
     expect(byHandle(ports, 'order0').lane).toBe(0);
+    expect(byHandle(ports, 'order1').kind).toBe('diffract');
+    expect(byHandle(ports, 'order0').kind).toBe('transmit');
   });
 
   it('keeps the undiffracted beam straight ahead when it is the active order', () => {
     const ports = componentOutputs(inBeam, aom({ activeOrder: '0' } as Partial<OpticalNodeData>), { entryLane: 0 });
     expect(ports).toHaveLength(1);
     expect(ports[0].lane).toBe(0);
+    expect(ports[0].kind).toBe('transmit');
   });
 
-  it('defaults to the centre lane with no context', () => {
+  it('deflects to the side the transducer is on, whichever order is driven', () => {
+    // Two independent signs: `activeOrder` is the RF drive and sets the sign of the shift,
+    // `deflectSide` is which end of the crystal the transducer is bonded to. A transducer can
+    // sit on either end, so a −1 shift can perfectly well leave on the clockwise side.
+    const forward = unitAt(0);
+    const cw  = diffractedDirection(forward, 0, aom({ deflectSide: 'cw' } as Partial<OpticalNodeData>));
+    const ccw = diffractedDirection(forward, 0, aom({ deflectSide: 'ccw' } as Partial<OpticalNodeData>));
+    expect(angleOf(cw)).toBeCloseTo(DEFAULT_DEFLECT_DEG, 9);
+    expect(angleOf(ccw)).toBeCloseTo(360 - DEFAULT_DEFLECT_DEG, 9);
+
+    // Driving −1 changes the shift and nothing about the geometry.
+    const minus = aom({ activeOrder: '-1', deflectSide: 'cw' } as Partial<OpticalNodeData>);
+    expect(angleOf(diffractedDirection(forward, 0, minus))).toBeCloseTo(DEFAULT_DEFLECT_DEG, 9);
+    expect(byHandle(componentOutputs(inBeam, minus), 'order1').beam.detuningHz).toBe(-80e6);
+  });
+
+  it('defaults to the centre axis with no context', () => {
     expect(byHandle(componentOutputs(inBeam, aom()), 'order1').lane).toBe(0);
   });
 });
@@ -239,54 +268,107 @@ describe('autoRoute — AOM', () => {
   const pd = (id: string, cx: number, cy = AXIS_Y) =>
     at(id, { type: 'photodiode', category: 'detection', bandwidth: 100, signalFactor: 1 }, cx, cy);
 
-  it('routes only the diffracted order downstream', () => {
-    const nodes = [laserNode, at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y), pd('PD', 800)];
-    const { segments, beams, nodeBeams } = autoRoute(nodes, []);
+  /** Where the diffracted order goes from a cell at `(cx, cy)` fed along +x. */
+  const diffractedFrom = (cx: number, cy: number, r: number, data = aom()) => {
+    const d = diffractedDirection(unitAt(0), 0, data);
+    return { x: cx + d.dx * r, y: cy + d.dy * r, dir: d };
+  };
 
-    // One beam in, one beam out — the dumped order produces no segment.
-    expect(segments.map(s => s.targetId).sort()).toEqual(['AOM', 'PD']);
-    const out = segments.find(s => s.sourceId === 'AOM')!;
-    expect(out.sourceHandle).toBe('order1');
-    expect(out.beam.power).toBeCloseTo(80, 6);
-    expect(out.beam.detuningHz).toBe(80e6);
-    expect(beams.get(out.id)!.detuningHz).toBe(80e6);
-    expect(nodeBeams.get('PD')!.detuningHz).toBe(80e6);
+  it('routes both orders downstream as real beams', () => {
+    // The whole point of the change: the cell puts two beams into the room. The 0th carries
+    // straight on to a detector in front of it, and the diffracted one leaves at an angle to
+    // a detector placed on that line.
+    const shifted = diffractedFrom(400, AXIS_Y, 400);
+    const nodes = [
+      laserNode,
+      at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
+      pd('PD0', 800, AXIS_Y),
+      pd('PD1', shifted.x, shifted.y),
+    ];
+    const { segments, nodeBeams } = autoRoute(nodes, []);
+    expect(segments.filter(s => s.sourceId === 'AOM').map(s => s.sourceHandle).sort())
+      .toEqual(['order0', 'order1']);
+
+    // Straight on, unshifted, carrying what was not diffracted.
+    expect(nodeBeams.get('PD0')!.power).toBeCloseTo(18, 6);
+    expect(nodeBeams.get('PD0')!.detuningHz).toBeUndefined();
+    // Off at an angle, carrying the shift.
+    expect(nodeBeams.get('PD1')!.power).toBeCloseTo(80, 6);
+    expect(nodeBeams.get('PD1')!.detuningHz).toBe(80e6);
     // The beam arriving at the AOM is of course unshifted.
     expect(nodeBeams.get('AOM')!.detuningHz).toBeUndefined();
   });
 
-  it('reports the dumped power without routing it', () => {
+  it('lets both orders run on as free beams with nothing in their way', () => {
     const nodes = [laserNode, at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y)];
-    const { segments, nodeBeams } = autoRoute(nodes, []);
-    // Only the diffracted order leaves (as a free beam); nothing on the 0th.
+    const { segments } = autoRoute(nodes, []);
     const leaving = segments.filter(s => s.sourceId === 'AOM');
-    expect(leaving).toHaveLength(1);
+    expect(leaving).toHaveLength(2);
+    expect(leaving.every(s => s.free)).toBe(true);
+    expect(leaving.find(s => s.sourceHandle === 'order0')!.beam.power).toBeCloseTo(18, 6);
+    expect(leaving.find(s => s.sourceHandle === 'order1')!.beam.power).toBeCloseTo(80, 6);
+  });
 
-    // …but the dump is still accounted for, via the port table.
-    const dumped = byHandle(componentOutputs(nodeBeams.get('AOM')!, aom()), 'order0');
-    expect(dumped.beam.power).toBeCloseTo(18, 6);
+  it('sends the 0th order along the entry axis and the diffracted one off it', () => {
+    const nodes = [laserNode, at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y)];
+    const { segments } = autoRoute(nodes, []);
+    const zeroth = segments.find(s => s.sourceHandle === 'order0')!;
+    const first  = segments.find(s => s.sourceHandle === 'order1')!;
+
+    // Undeviated: same axis in and out.
+    expect(zeroth.y1).toBeCloseTo(AXIS_Y, 6);
+    expect(zeroth.y2).toBeCloseTo(AXIS_Y, 6);
+    // Deflected by exactly the drawn angle, to the side the transducer sets.
+    const dir = angleOf({ dx: first.x2 - first.x1, dy: first.y2 - first.y1 });
+    expect(dir).toBeCloseTo(DEFAULT_DEFLECT_DEG, 6);
+
+    // Both start at the cell's exit face, which is where the crystal ends.
+    const g = getNodeGeometry('aom');
+    expect(zeroth.x1).toBeCloseTo(400 + g.width / 2, 6);
+  });
+
+  it('deflects the other way for a cell whose transducer is on the other end', () => {
+    // Independent of `activeOrder`, which only sets the sign of the shift.
+    const nodes = [
+      laserNode,
+      at('AOM', aom({ deflectSide: 'ccw', activeOrder: '-1' }) as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
+    ];
+    const { segments } = autoRoute(nodes, []);
+    const first = segments.find(s => s.sourceHandle === 'order1')!;
+    const dir = angleOf({ dx: first.x2 - first.x1, dy: first.y2 - first.y1 });
+    expect(dir).toBeCloseTo(360 - DEFAULT_DEFLECT_DEG, 6);   // the other side of the axis
+    expect(first.beam.detuningHz).toBe(-80e6);
   });
 
   it('carries the shift through the rest of the layout', () => {
+    // A mirror on the diffracted line, and a detector wherever that mirror sends the beam.
+    const m = diffractedFrom(400, AXIS_Y, 300);
+    const out = mirrorReflect(m.dir, 0);
     const nodes = [
       laserNode,
       at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
-      at('M', { type: 'dielectric_mirror', reflectivity: 100, rotation: 0 }, 700, AXIS_Y),
-      pd('PD', 700, AXIS_Y - 200),
+      at('M', { type: 'dielectric_mirror', reflectivity: 100, rotation: 0 }, m.x, m.y),
+      pd('PD', m.x + out.dx * 200, m.y + out.dy * 200),
     ];
     const { nodeBeams } = autoRoute(nodes, []);
     expect(nodeBeams.get('PD')!.detuningHz).toBe(80e6);
     expect(nodeBeams.get('PD')!.power).toBeCloseTo(80, 6);
   });
 
-  it('stacks two AOMs in series', () => {
+  it('stacks two AOMs in series along the fold their deflections make', () => {
+    // Each cell adds a deflection as well as a shift, so a chain of them walks round the
+    // lattice — which is exactly what a real bench does.
+    const a1 = diffractedFrom(400, AXIS_Y, 300);
+    const second = aom({ rfFrequency: 110 });
+    const d2 = diffractedDirection(a1.dir, DEFAULT_DEFLECT_DEG, second);
     const nodes = [
       laserNode,
       at('A1', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
-      at('A2', aom({ rfFrequency: 110 }) as Partial<OpticalNodeData> & { type: 'aom' }, 700, AXIS_Y),
-      pd('PD', 1000),
+      at('A2', second as Partial<OpticalNodeData> & { type: 'aom' }, a1.x, a1.y),
+      pd('PD', a1.x + d2.dx * 300, a1.y + d2.dy * 300),
     ];
     const { nodeBeams } = autoRoute(nodes, []);
+    expect(angleOf(d2)).toBeCloseTo(2 * DEFAULT_DEFLECT_DEG, 6);
     expect(nodeBeams.get('PD')!.detuningHz).toBe(190e6);
     expect(nodeBeams.get('PD')!.power).toBeCloseTo(100 * 0.8 * 0.8, 6);
   });
@@ -300,16 +382,12 @@ describe('autoRoute — AOM', () => {
     const { segments, nodeBeams } = autoRoute(nodes, []);
     const out = segments.find(s => s.sourceId === 'AOM')!;
     expect(out.sourceHandle).toBe('order0');
+    expect(segments.some(s => s.sourceHandle === 'order1')).toBe(false);
     expect(nodeBeams.get('PD')!.power).toBeCloseTo(98, 6);
     expect(nodeBeams.get('PD')!.detuningHz).toBeUndefined();
   });
 
-  // ── Lanes through the router ────────────────────────────────────────────────
-
-  const DUMP_Y = AXIS_Y + ORDER_SEPARATION_PX;
-
   it('finds an AOM already sitting centred on a beam', () => {
-    // Lane 0 is the centre, so lanes must not break existing layouts.
     const nodes = [laserNode, at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y), pd('PD', 800)];
     const { segments, snaps } = autoRoute(nodes, []);
     expect(segments.some(s => s.targetId === 'AOM')).toBe(true);
@@ -317,57 +395,14 @@ describe('autoRoute — AOM', () => {
     expect(snaps.get('AOM')).toBeUndefined();
   });
 
-  it('keeps the diffracted order on the entry axis', () => {
-    const nodes = [laserNode, at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y), pd('PD', 800)];
-    const { segments } = autoRoute(nodes, []);
-    const out = segments.find(s => s.sourceHandle === 'order1')!;
-    expect(out.y1).toBeCloseTo(AXIS_Y, 6);
-    expect(out.y2).toBeCloseTo(AXIS_Y, 6);
-    expect(out.targetId).toBe('PD');
-  });
-
-  it('routes the 0th order onto its own lane when asked', () => {
-    const nodes = [
-      laserNode,
-      at('AOM', aom({ dumpZeroOrder: false }) as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
-    ];
-    const { segments } = autoRoute(nodes, []);
-    const zeroth = segments.find(s => s.sourceHandle === 'order0')!;
-    expect(zeroth).toBeDefined();
-    expect(zeroth.y1).toBeCloseTo(DUMP_Y, 6);
-    expect(zeroth.y2).toBeCloseTo(DUMP_Y, 6);
-    expect(zeroth.beam.power).toBeCloseTo(18, 6);
-    // It starts exactly at the cell's exit face, not its centre. The icon's peel-off
-    // line is drawn to this same point, so the two must not drift apart — and it is
-    // why the body no longer has to be tall enough to contain the dump lane.
-    const g = getNodeGeometry('aom');
-    expect(zeroth.x1).toBeCloseTo(400 + g.width / 2, 6);
-    expect(Math.abs(DUMP_Y - AXIS_Y)).toBeGreaterThan(g.height / 2);   // lane is outside the body
-  });
-
-  it('emits no 0th-order beam while it is blocked at the cell', () => {
-    const nodes = [laserNode, at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y)];
-    const { segments } = autoRoute(nodes, []);
-    expect(segments.some(s => s.sourceHandle === 'order0')).toBe(false);
-  });
-
-  it('puts the dump lane on the other side for the −1 order', () => {
-    const nodes = [
-      laserNode,
-      at('AOM', aom({ activeOrder: '-1', dumpZeroOrder: false }) as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
-    ];
-    const { segments } = autoRoute(nodes, []);
-    const zeroth = segments.find(s => s.sourceHandle === 'order0')!;
-    expect(zeroth.y1).toBeCloseTo(AXIS_Y - ORDER_SEPARATION_PX, 6);
-  });
-
   it('blocks the 0th order with a beam block while the diffracted order carries on', () => {
-    // Case 1, end to end.
+    // The bench answer to a cell that no longer swallows anything: put a block in front of it.
+    const shifted = diffractedFrom(400, AXIS_Y, 400);
     const nodes = [
       laserNode,
-      at('AOM', aom({ dumpZeroOrder: false }) as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
-      at('BLOCK', { type: 'beam_block', category: 'conditioning' }, 700, DUMP_Y),
-      pd('PD', 800, AXIS_Y),
+      at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
+      at('BLOCK', { type: 'beam_block', category: 'conditioning' }, 700, AXIS_Y),
+      pd('PD', shifted.x, shifted.y),
     ];
     const { segments, nodeBeams } = autoRoute(nodes, []);
 
@@ -383,41 +418,61 @@ describe('autoRoute — AOM', () => {
     expect(nodeBeams.get('PD')!.detuningHz).toBe(80e6);
   });
 
-  it('does not let one lane capture components sitting on the other', () => {
+  it('does not let one order capture components sitting on the other', () => {
+    const shifted = diffractedFrom(400, AXIS_Y, 400);
     const nodes = [
       laserNode,
-      at('AOM', aom({ dumpZeroOrder: false }) as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
-      at('BLOCK', { type: 'beam_block', category: 'conditioning' }, 700, DUMP_Y),
-      pd('PD', 800, AXIS_Y),
+      at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y),
+      at('BLOCK', { type: 'beam_block', category: 'conditioning' }, 700, AXIS_Y),
+      pd('PD', shifted.x, shifted.y),
     ];
-    const { snaps } = autoRoute(nodes, []);
-    // Neither the block nor the detector is dragged onto the other's lane.
-    const bg = getNodeGeometry('beam_block');
-    const bSnap = snaps.get('BLOCK');
-    if (bSnap) expect(bSnap.y + bg.height / 2).toBeCloseTo(DUMP_Y, 6);
-    const pg = getNodeGeometry('photodiode');
-    const pSnap = snaps.get('PD');
-    if (pSnap) expect(pSnap.y + pg.height / 2).toBeCloseTo(AXIS_Y, 6);
+    const { snaps, segments, rotations } = autoRoute(nodes, []);
+    expect(segments.find(s => s.targetId === 'BLOCK')!.sourceHandle).toBe('order0');
+    expect(segments.find(s => s.targetId === 'PD')!.sourceHandle).toBe('order1');
+
+    // Neither is dragged onto the other's beam. Both are already on one, so their *centres*
+    // must not move — a snap may still be reported, because turning a node to face an oblique
+    // beam changes the box its top-left corner belongs to.
+    const centreAfter = (id: string, was: { x: number; y: number }) => {
+      const snap = snaps.get(id);
+      if (!snap) return was;
+      const node = nodes.find(n => n.id === id)!;
+      const box = occupiedBox(node.data, rotations.get(id) ?? 0);
+      return { x: snap.x + box.width / 2, y: snap.y + box.height / 2 };
+    };
+    const block = centreAfter('BLOCK', { x: 700, y: AXIS_Y });
+    expect(block.x).toBeCloseTo(700, 6);
+    expect(block.y).toBeCloseTo(AXIS_Y, 6);          // stayed on the 0th order
+    const det = centreAfter('PD', { x: shifted.x, y: shifted.y });
+    expect(det.x).toBeCloseTo(shifted.x, 6);
+    expect(det.y).toBeCloseTo(shifted.y, 6);          // stayed on the diffracted order
   });
 
-  it('keeps the dump lane on the same physical side for a beam travelling backwards', () => {
-    // A lane is a place on the device, so it must not flip when the beam reverses —
-    // this is what makes a double-passed cell retrace its own path.
+  it('deflects towards the same physical side for a beam travelling backwards', () => {
+    // The kick belongs to the device, not to the beam, so a cell fed right-to-left bends its
+    // diffracted order to the *same* side of the room. This is what makes a double pass
+    // retrace: reverse the beam and the rotation sense flips with it, so a second pass undoes
+    // the first deflection instead of doubling it. See physics/diffraction.
     const backwards = at('L1', {
       type: 'laser_source', category: 'source', name: 'L1', rotation: 180,
       wavelength: 780, outputPower: 100, polarization: 'H', waist: 800, mSquared: 1,
     } as Partial<OpticalNodeData> & { type: 'laser_source' }, 1000, AXIS_Y);
     const nodes = [
       backwards,
-      at('AOM', aom({ dumpZeroOrder: false }) as Partial<OpticalNodeData> & { type: 'aom' }, 600, AXIS_Y),
+      at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 600, AXIS_Y),
     ];
     const { segments } = autoRoute(nodes, []);
     const zeroth = segments.find(s => s.sourceHandle === 'order0')!;
-    expect(zeroth.x2).toBeLessThan(zeroth.x1);              // travelling left
-    expect(zeroth.y1).toBeCloseTo(DUMP_Y, 6);               // still below centre
+    const first  = segments.find(s => s.sourceHandle === 'order1')!;
+
+    expect(zeroth.x2).toBeLessThan(zeroth.x1);              // 0th still travels left
+    expect(first.x2).toBeLessThan(first.x1);                // so does the diffracted one
+    expect(first.y2).toBeGreaterThan(first.y1);             // and still bends downwards
+    const dir = angleOf({ dx: first.x2 - first.x1, dy: first.y2 - first.y1 });
+    expect(dir).toBeCloseTo(180 - DEFAULT_DEFLECT_DEG, 6);
   });
 
-  it('snaps a mispositioned AOM by its centre lane', () => {
+  it('snaps a mispositioned AOM by its axis', () => {
     const nodes = [
       laserNode,
       at('AOM', aom() as Partial<OpticalNodeData> & { type: 'aom' }, 400, AXIS_Y + 6),
@@ -428,55 +483,5 @@ describe('autoRoute — AOM', () => {
     const snap = snaps.get('AOM')!;
     expect(snap).toBeDefined();
     expect(snap.y + g.height / 2).toBeCloseTo(AXIS_Y, 6);
-  });
-});
-
-// ── Which way the dumped order leaves ─────────────────────────────────────────
-
-describe('laneExitSign', () => {
-  const cell = (over: Partial<OpticalNodeData> = {}) => ({
-    type: 'aom', name: 'A1', category: 'modulation',
-    rfFrequency: 80, diffractionEfficiency: 80, order: 1, ...over,
-  } as OpticalNodeData);
-
-  it('leaves along the body axis when the beam runs that way', () => {
-    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: { dx: 1, dy: 0 } }))).toBe(1);
-    expect(laneExitSign(cell({ rotation: 90, beamIncomingDir: { dx: 0, dy: 1 } }))).toBe(1);
-  });
-
-  it('turns round for a beam running against the body axis', () => {
-    // The bug this fixes: a multi-lane component aligns to the beam *axis*, not its
-    // direction, so a cell fed right-to-left keeps rotation 0 — and anything drawn along
-    // +x in its own frame then points back up the beam it came from.
-    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: { dx: -1, dy: 0 } }))).toBe(-1);
-    expect(laneExitSign(cell({ rotation: 90, beamIncomingDir: { dx: 0, dy: -1 } }))).toBe(-1);
-    expect(laneExitSign(cell({ rotation: 180, beamIncomingDir: { dx: 1, dy: 0 } }))).toBe(-1);
-  });
-
-  it('handles a diagonal beam by which side of square-on it falls', () => {
-    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: unitAt(30) }))).toBe(1);
-    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: unitAt(150) }))).toBe(-1);
-    // Exactly square-on is a tie; +1 keeps it deterministic.
-    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: unitAt(90) }))).toBe(1);
-  });
-
-  it('assumes forward for a component no beam has reached', () => {
-    // A fresh drop, or a palette preview: there is nothing to point away from yet.
-    expect(laneExitSign(cell({ rotation: 0 }))).toBe(1);
-    expect(laneExitSign(cell({ rotation: 0, beamIncomingDir: { dx: 0, dy: 0 } }))).toBe(1);
-  });
-
-  it('does not touch the lane offset — that side is physical', () => {
-    // Only the along-axis direction flips. The perpendicular offset is the side the
-    // transducer put the order on, and flipping it would break a double pass retracing.
-    const forward = cell({ rotation: 0, beamIncomingDir: { dx: 1, dy: 0 } });
-    const backward = cell({ rotation: 0, beamIncomingDir: { dx: -1, dy: 0 } });
-    expect(componentLanes(backward)).toEqual(componentLanes(forward));
-  });
-
-  it('follows the active order for the lane, independently of the exit direction', () => {
-    const minus = cell({ activeOrder: '-1', beamIncomingDir: { dx: -1, dy: 0 } });
-    expect(componentLanes(minus)[1]).toBeLessThan(0);
-    expect(laneExitSign(minus)).toBe(-1);
   });
 });

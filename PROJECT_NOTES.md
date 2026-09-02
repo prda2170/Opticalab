@@ -154,12 +154,21 @@ EditorCanvas ──── xyflow local state (nodes, edges)
   coupler, **seeding is a fixed point**: seed what can be seeded, drain the ray queue, try
   again, stop when a round adds nothing. Same shape as the user-wired pass. `seeded` makes it
   terminate, so a fibre loop settles instead of running away.
-- **A component may declare more than one beam axis.** `componentLanes(data)`
-  (`physics/lanes.ts`) returns perpendicular offsets from the centre; lane 0 is always
-  0, so every single-lane component behaves as if lanes didn't exist. Offsets are
-  measured along `laneNormal(rotation)` — **fixed to the component, never to the beam
-  direction** — because a lane is a place on the device and must not flip when a beam
-  traverses it backwards. `OutputPort.lane` selects the axis a port leaves on.
+- **A component's frame is fixed to the component, never to the beam.** `bodyAxis(rotation)`
+  and `laneNormal(rotation)` (`physics/lanes.ts`) are the component's own axes, and nothing
+  about them follows the direction light happens to travel: a place on a device must not move
+  when a beam traverses it backwards, and that invariance is what lets a double-passed cell
+  retrace its own path. `componentLanes(data)` now returns `[0]` for everything — acousto-optic
+  cells were the one two-lane device, and both their orders are real angled beams as of 1.3 (see
+  the diffraction entry in the change log). `OutputPort.lane` and the per-lane hit test remain,
+  because a component with a genuine second axis would slot straight back in.
+- **An acousto-optic cell puts two real beams into the room.** `physics/diffraction.ts` owns the
+  rule: the 0th order carries straight on, the diffracted order leaves `DEFAULT_DEFLECT_DEG`
+  (15°, a lattice angle) off it, and neither is absorbed inside the cell — you block whichever
+  you are not using. Two **independent** signs: `activeOrder` (±1) is the RF drive and sets the
+  frequency shift; `deflectSide` (cw/ccw) is which end of the crystal the transducer is bonded
+  to and sets the side the beam leaves on. The deflection is applied as a **momentum kick fixed
+  in the device frame**, not as a constant angle, which is what closes a double pass.
 - **A ray's `origin` is the beam's true position.** There is no nominal "routing
   axis" plus a perpendicular offset scalar. Components snap onto the true hit point,
   and beams that genuinely share a line are separated *for drawing only* by
@@ -309,8 +318,16 @@ deflection is θ₁ = λ·f_RF/v_a ≈ **14.9 mrad** for 80 MHz / 780 nm / TeO�
 orders separate by only ~7 px over 300 mm of canvas and you would need 1.7 m to
 separate them by one inch. True-angle geometry therefore solves neither display nor
 component placement, while breaking every axis-aligned assumption in the app.
-**Decision: keep the deflection angle as annotated physics, render it as parallel
+**Decision (2026-08-16): keep the deflection angle as annotated physics, render it as parallel
 lanes on the hole grid.**
+
+> **Reversed 2026-09-01.** Parallel lanes were geometrically backwards in the one way that
+> mattered on a bench: the cell appeared to *deviate the 0th order* and swallow it, so you could
+> not put a beam block in the beam you actually block. Both orders are real beams now, the
+> diffracted one leaving at a 15° lattice angle. The physical argument above still stands — the
+> true angle is ~1° and undrawable — so 15° is an explicit caricature, chosen from the lattice so
+> that components on the diffracted arm can still align to it. `componentLanes` is `[0]` for
+> everything, and the deflection lives in `physics/diffraction.ts`. See the change log.
 
 | Phase | Work | Status |
 |---|---|---|
@@ -320,10 +337,14 @@ lanes on the hole grid.**
 | 4 | Path-based traversal (item D); laser as terminator; directional isolator | ✅ done |
 | 5 | `retroreflector` component + `PortKind: 'retro'` → **case 2** | ✅ done |
 | 6 | Deflection-angle annotation, double-pass preset (icon done, see below) | todo |
+| 7 | Both orders as real beams at a 15° lattice angle; transducer side | ✅ done |
 
 Key points of the design:
 
-- **The AOM is a two-lane device.** `order1` (diffracted) stays on the lane the beam
+- ~~**The AOM is a two-lane device.**~~ *Superseded 2026-09-01 — kept because the reasoning
+  about what must not break is still the reasoning that governs the angular model: the diffracted
+  order still leaves from the entry axis, and a double pass still has to retrace.*
+  `order1` (diffracted) stays on the lane the beam
   arrived on; `order0` peels off onto the other. **This is inverted from the original
   design**, which had the diffracted order cross lanes. Crossing would have orphaned
   every existing AOM layout — downstream components sit on the entry axis and would
@@ -333,11 +354,10 @@ Key points of the design:
   re-enters on the lane it left by and diffracts straight back out along it. The cost:
   the schematic draws the 0th order as the deviated one, which is geometrically
   backwards. It is a labelled convention, and the deflection is a caricature either way.
-- **Lane spacing must exceed 2 × `BEAM_SNAP_DIST`** (40 px vs 20 px) or lanes capture
-  each other's beams, *and* exceed a beam block's half-height (26 px) so a block on the
-  dump lane doesn't cover the main beam. One inch satisfies both and lands on the hole
-  grid. It is a fixed constant rather than per-component because `getNodeGeometry` would
-  have to see node data to size the body around a variable separation.
+- ~~**Lane spacing must exceed 2 × `BEAM_SNAP_DIST`**~~ *(40 px vs 20 px, one inch — retired
+  with the lanes.)* The angular model has to earn the same clearance with distance instead:
+  15° separates two beams by 20 px after about 77 px ≈ 2 inches, which is closer to a cell than
+  anything gets placed. A test pins that arithmetic.
 - **Anti-parallel re-entry is the blocker for case 2** (`autoRoute.ts`, the
   `dot(d, ray.dir) < -0.5` guard). Replacing `visitedDirs` with per-ray path
   signatures `(nodeId, dirKey, lane)` also lets the `≤2 co-propagating` caps go —
@@ -349,18 +369,17 @@ Key points of the design:
 - **Rejected:** a composite `double_pass_aom` black box. It skips phases 2–5 but you
   can't see the lens, put a QWP inside, or model the PBS extraction. Ship the same
   convenience as a *preset template* of real components after phase 5.
-- **The cell body does not have to contain its lanes.** It was briefly 64×88 so the
-  dump lane sat inside it; it is now 60×44 (mirror height) with a dashed peel-off line
-  drawn from inside the body out to where the 0th-order beam starts. That point is the
-  exit face, `centre + width/2`, which is what the router trims to — icon and beam must
-  keep agreeing there, and a test pins it. Height is otherwise free to choose, since a
-  horizontal beam's trim comes from `width/2`.
-- **Known limitations to state in the UI:** lane separation is a caricature. (Box nodes
-  auto-rotate as of 2026-08-23; multi-lane cells align to the beam *axis* so their dump
-  side cannot flip.) The cat-eye's focal length *is* modelled
+- **The cell body does not have to contain its lanes.** It was briefly 64×88 so the dump lane
+  sat inside it; it is 60×44 (mirror height). The peel-off stub is gone with the lanes — what the
+  artwork draws now is the RF transducer, on the side *opposite* the deflection, since phonon
+  momentum pushes the light along the acoustic propagation.
+- **Known limitations to state in the UI:** the 15° deflection is a caricature of ~1°, so a
+  drawn AOM arm is not a scale drawing of a real one. (Box nodes auto-rotate as of 2026-08-23;
+  cells in `SIDED_TYPES` align to the beam *axis*, so a cell fed backwards keeps its transducer
+  on the same side of the room.) The cat-eye's focal length *is* modelled
   (see the change log), so a badly placed one shows a mis-sized return beam — but
-  nothing warns about it, and beam walk with f_RF is still not modelled at all
-  (the lane model has no angle to walk).
+  nothing warns about it. Beam walk with f_RF is still not modelled: there is an angle to walk
+  now, but it is the drawn caricature rather than λ·f_RF/v_a, so walking it would be fiction.
 - **Dead code:** `components/Edges/BeamTailOverlay.tsx` (superseded by phantom
   nodes), `computedInput`/`computedOutput` on `BaseNodeData`, `cascadeABCD` and
   `curvedMirror` (kept deliberately — both are wanted for cavity support).
@@ -538,6 +557,71 @@ stops tracing — nothing calls it — and keeps its last results until it is sh
 ---
 
 ## 6. Change log
+
+### 2026-09-01 — both acousto-optic orders are real beams
+
+The 0th order used to be absorbed inside the cell, with the option of routing it out onto a
+parallel lane an inch away. Two beams leave a cell now: the 0th carries straight on undeviated,
+the diffracted order leaves at an angle, and you put a beam block in front of whichever you are
+not using — which is what the bench does.
+
+**The lanes were backwards in the way that mattered.** With the diffracted order on the entry
+axis, the *0th* order was the one drawn deviating, and it was drawn peeling off into a dashed
+stub with a block glyph at the end. So the schematic said the cell deviates the beam you keep
+and swallows the beam you block, which is exactly inverted, and there was nowhere to put a real
+beam block. The 2026-08-16 reasoning for lanes was about display and placement, and it was
+right about both: the true first-order deflection is θ₁ = λ·f_RF/v_a ≈ 15 mrad, about a degree,
+which separates two beams by ~7 px over a whole canvas.
+
+**So the angle is an explicit caricature: 15°, from the lattice.** `DIR_STEP_DEG` is 15, and
+that is the point — a diffracted beam has to be a direction the router can express, or nothing
+could be placed on it. The true angle stays reported as physics rather than drawn.
+
+**Two independent signs, which is the part worth getting right.** `activeOrder` (±1) is the RF
+drive: it sets the sign of the frequency shift. `deflectSide` (cw/ccw) is which end of the
+crystal the transducer is bonded to: it sets the side the diffracted beam leaves on. A
+transducer can sit on either end, so neither implies the other, and both are user choices. The
+properties panel says so in as many words, because the temptation to tie them is obvious.
+
+**The deflection is a momentum kick fixed in the device frame, not a constant angle.** This is
+what makes a double pass close. `diffractedDirection(incoming, rotation, data)` rotates the beam
+by the deflection *towards the cell's kick vector*, and the kick belongs to the crystal, so the
+rotation **sense** flips when the beam reverses:
+
+```
+forward   0°  → +15°     (turned towards the kick)
+return  195°  → 180°     (turned towards the same kick, now the other way round)
+```
+
+The return beam therefore comes back exactly anti-parallel to the input and retraces it into the
+PBS. Add a constant +15° twice instead and the return leaves at 195°, misses the input by 15°,
+and the double pass silently stops working. A test asserts 180.000000° on the real double-pass
+layout, and another checks the side at every lattice angle in both directions.
+
+`laneExitSign` is gone, and with it the whole 2026-08-24 dumped-order-direction fix: there is no
+along-axis artwork left to point the wrong way. `SIDED_TYPES` replaces "has more than one lane"
+as the reason a cell aligns to the beam *axis* (`% 180`) rather than its direction — the reason
+is now that spinning a cell through 180° would carry its transducer to the other end.
+
+**What the artwork draws instead** is the transducer: a short bar bonded to the crystal face on
+the side *opposite* the deflection, with the acoustic wave dashed across the crystal in the
+direction it pushes the light. Both renderers draw it, and it is the only sign of `deflectSide`
+on an unlit cell.
+
+**Format 1.3, and a warning for the layouts this breaks.** A saved cell is not wrong, but its
+*arm* is: whatever used to sit on the shared axis downstream now meets the undiffracted 0th
+order, so it silently stops carrying the RF shift while the powers still look plausible. The
+migration drops `dumpZeroOrder` and explains what to check, and the tracer warns per cell when
+the diffracted order runs off unused while the 0th order feeds the arm. On the real layouts that
+fires on all three cells in D1 and all five in D2 — those arms want re-drawing along the
+diffracted beam, which is a bench decision (which way each arm should bend), not a migration's.
+
+15 tests added (`diffraction.test.ts`): the lattice constraint and the per-cell override,
+side-vs-order independence, the kick turning with the cell, deflection from every direction on
+the same side, the double pass closing at exactly 180°, the wrong-order warning firing and
+staying quiet in the three cases where it should, and the 1.3 round trip. `aom.test.ts`,
+`doublePass.test.ts`, `instrumentOrientation.test.ts`, `chamberTrace.test.ts`, `diagonal.test.ts`
+and `fiberTag.test.ts` were re-laid onto the diffracted arm. **643 tests total.**
 
 ### 2026-08-26 — selecting one thing selects one thing
 

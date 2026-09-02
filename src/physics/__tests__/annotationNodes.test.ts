@@ -113,9 +113,11 @@ describe('annotations in the layout file', () => {
     expect(n.data).toMatchObject({ text: '\\Delta = 2\\pi\\times80 MHz', fontSize: 12 });
   });
 
-  it('are written at the version that introduced them', () => {
-    expect(LAYOUT_VERSION).toBe('1.2');
-    expect(JSON.parse(layoutToJSON([], [])).version).toBe('1.2');
+  it('are written at the current format version', () => {
+    // Annotations arrived in 1.2; the stamp has moved on since (1.3 made both acousto-optic
+    // orders real beams), so what matters is that a file is stamped with the build that wrote
+    // it, not with the feature that needed it.
+    expect(JSON.parse(layoutToJSON([], [])).version).toBe(LAYOUT_VERSION);
   });
 
   it('still load from a file written before they existed', () => {

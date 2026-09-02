@@ -4,6 +4,8 @@ import { autoRoute } from '../autoRoute';
 import { componentOutputs, componentABCD, advanceBeam, laserBeam } from '../propagate';
 import { transformQ } from '../gaussian';
 import { pxToMm, mmToPx } from '../scale';
+import { unitAt, angleOf } from '../geometry';
+import { DEFAULT_DEFLECT_DEG } from '../diffraction';
 import type { OpticalNodeData } from '../../types/components';
 import type { BeamState, BeamSegment } from '../../types/beam';
 import { getNodeGeometry } from '../../utils/nodeGeometry';
@@ -154,6 +156,19 @@ describe('double-passed AOM', () => {
   const F_RF = 80;
 
   /**
+   * A point `r` px along a cell's **diffracted** arm, for a cell at `(cx, AXIS)` fed along +x.
+   *
+   * It is the diffracted order that gets double-passed, and that order leaves the cell at
+   * `DEFAULT_DEFLECT_DEG` to the transducer's side — so the waveplate and the cat eye sit on
+   * this line rather than straight ahead. The 0th order carries on down the input axis and
+   * runs off the figure, which is what a beam block is for on a real bench.
+   */
+  const arm = (cx: number, r: number) => {
+    const d = unitAt(DEFAULT_DEFLECT_DEG);
+    return { x: cx + d.dx * r, y: AXIS + d.dy * r };
+  };
+
+  /**
    * The canonical layout: H in through a PBS, an AOM, a λ/4 at 45°, and a cat eye.
    * Two passes of the waveplate rotate H to V, so the PBS reflects the return beam out
    * on a separate port instead of sending it back to the laser.
@@ -169,8 +184,10 @@ describe('double-passed AOM', () => {
       rfFrequency: over.rfFrequency ?? F_RF, rfPower: 33,
       diffractionEfficiency: over.efficiency ?? 80, transmission: 98, activeOrder: '+1',
     } as Partial<OpticalNodeData> & { type: 'aom' }, 600, AXIS),
-    at('QWP', { type: 'qwp', category: 'conditioning', fastAxisAngle: 45 }, 850, AXIS),
-    at('RR', retro() as Partial<OpticalNodeData> & { type: 'retroreflector' }, 1050, AXIS),
+    at('QWP', { type: 'qwp', category: 'conditioning', fastAxisAngle: 45 },
+      arm(600, 250).x, arm(600, 250).y),
+    at('RR', retro() as Partial<OpticalNodeData> & { type: 'retroreflector' },
+      arm(600, 450).x, arm(600, 450).y),
     // The extracted beam leaves the PBS downwards ("/" reflects a leftward beam down).
     at('OUT', { type: 'photodiode', category: 'detection', bandwidth: 100, signalFactor: 1 }, 300, AXIS + 300),
   ];
@@ -245,8 +262,9 @@ describe('double-passed AOM', () => {
     const withRetro = (focalLength: number) => {
       const nodes = layout();
       const i = nodes.findIndex(n => n.id === 'RR');
+      const p = arm(600, mmToPx(100));
       nodes[i] = at('RR', retro({ focalLength }) as Partial<OpticalNodeData> & { type: 'retroreflector' },
-        600 + mmToPx(100), AXIS);
+        p.x, p.y);
       const { segments } = autoRoute(nodes, []);
       return segments.find(s => s.sourceId === 'RR')!.beam.w!;
     };
@@ -280,7 +298,8 @@ describe('double-passed AOM', () => {
       type: 'aom', category: 'modulation', rfFrequency: F_RF, rfPower: 33,
       diffractionEfficiency: 80, transmission: 98, activeOrder: '+1',
     } as Partial<OpticalNodeData> & { type: 'aom' }, 700, AXIS),
-    at('RR', retro() as Partial<OpticalNodeData> & { type: 'retroreflector' }, 950, AXIS),
+    at('RR', retro() as Partial<OpticalNodeData> & { type: 'retroreflector' },
+      arm(700, 250).x, arm(700, 250).y),
     at('OUT', { type: 'photodiode', category: 'detection', bandwidth: 100, signalFactor: 1 }, 300, AXIS + 300),
   ];
 
@@ -352,6 +371,8 @@ describe('double-passed AOM', () => {
     });
 
     it('still works with the −1 order, shifting down twice', () => {
+      // Only the shift changes sign. Which side the beam leaves on is `deflectSide` — where
+      // the transducer is bonded — so the arm stays exactly where it is.
       const nodes = qwpBeforeAom();
       const i = nodes.findIndex(n => n.id === 'AOM');
       nodes[i] = at('AOM', {
@@ -370,6 +391,20 @@ describe('double-passed AOM', () => {
       expect(nodeBeams.get('OUT')).toBeUndefined();
       expect(segTo(segments, 'AOM')).toHaveLength(1);
     });
+  });
+
+  it('brings the return beam back exactly along the input axis', () => {
+    // The heart of it. The cell's kick is fixed in the crystal, so reversing the beam
+    // reverses the *sense* of the deflection: out at +15°, back at 180° rather than 195°.
+    // Add a constant +15° twice instead and the return misses the input by 15°, and a double
+    // pass silently stops working.
+    const { segments } = autoRoute(layout(), []);
+    const back = segments.find(s => s.sourceId === 'AOM' && s.targetId === 'PBS')!;
+    expect(back).toBeDefined();
+    expect(angleOf({ dx: back.x2 - back.x1, dy: back.y2 - back.y1 })).toBeCloseTo(180, 6);
+    expect(back.y1).toBeCloseTo(AXIS, 6);
+    expect(back.y2).toBeCloseTo(AXIS, 6);
+    expect(back.beam.detuningHz).toBe(2 * F_RF * 1e6);
   });
 
   it('reports the round-trip path length', () => {

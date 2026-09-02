@@ -11,7 +11,7 @@ import { labelDistance, labelHalfExtents, DEFAULT_LABEL_SIDE } from '../../physi
 import type { Vec2 } from '../../physics/geometry';
 import { detectorSignalLabel, incidentPower as incidentPowerOf } from '../../physics/detector';
 import { mirrorReflect } from '../../physics/geometry';
-import { componentLanes, laneExitSign } from '../../physics/lanes';
+import { deflectSignOf, deflectDegOf } from '../../physics/diffraction';
 import { ChamberArt } from './ChamberArt';
 import { useLayout } from '../../store/layoutContext';
 import { useWorkspace } from '../../store/workspaceStore';
@@ -117,23 +117,20 @@ function getHandles(data: OpticalNodeData): {
         ],
       };
     case 'aom':
-    case 'aod': {
-      // The diffracted order leaves along the entry lane (the centre); the 0th order
-      // leaves along the dump lane, one order-separation off. That lane is outside the
-      // body, so the handle is pulled to the body edge on the correct side — its exact
+    case 'aod':
+      // Both orders leave from the same face: the 0th straight on, the diffracted one at an
+      // angle. The handles are offset only so they are separately clickable — the exact
       // position is cosmetic, since auto-edges carry explicit coordinates and only the
-      // handle's existence matters to xyflow.
-      const geo = getNodeGeometry(type);
-      const lane = componentLanes(data)[1] ?? 0;
-      const lanePct = Math.min(92, Math.max(8, 50 + (lane / geo.height) * 100));
+      // handle's existence matters to xyflow. The diffracted handle sits on the side the
+      // beam will actually deflect towards, so a manual wire lands where the light goes.
       return {
         inputs:  [{ id: 'in',     label: 'in', position: Position.Left,  style: { top: '50%' } }],
         outputs: [
-          { id: 'order1', label: '±1', position: Position.Right, style: { top: '50%' } },
-          { id: 'order0', label: '0',  position: Position.Right, style: { top: `${lanePct}%` } },
+          { id: 'order0', label: '0',  position: Position.Right, style: { top: '50%' } },
+          { id: 'order1', label: '±1', position: Position.Right,
+            style: { top: deflectSignOf(data) > 0 ? '72%' : '28%' } },
         ],
       };
-    }
     case 'nonlinear_crystal':
     case 'shg_crystal':
       return {
@@ -542,51 +539,40 @@ const OpticalNode: React.FC<NodeProps<Node<OpticalNodeData>>> = ({ id, data, sel
           {renderHandles()}
         </div>
 
-        {/* AOM/AOD: the 0th-order dump lane.
-            The undiffracted order has its own beam axis one order-separation off the
-            centre — further out than the body, so a peel-off line runs from inside the
-            cell to the point where that beam actually begins (node-local `width`,
-            which is the exit face the router trims to). When the order is blocked
-            inside the cell, the default, the block glyph sits there; when the user
-            routes it out, a real beam continues from exactly that point. */}
+        {/* AOM/AOD: the transducer.
+            Both orders are real beams the tracer draws, so there is nothing to stub out
+            here any more. What is worth drawing is the one thing a beam cannot show you:
+            which side the acoustic wave comes from. Phonon momentum pushes the diffracted
+            light *along* the acoustic propagation, so the transducer sits on the side
+            **opposite** the deflection — and `deflectSide` is user-set, so on an unlit cell
+            this bar is the only sign of which way the diffracted order will go. */}
         {isAOM && (() => {
-          const laneY = artwork.height / 2 + (componentLanes(data)[1] ?? 0);
-          const dumped = (data as { dumpZeroOrder?: boolean }).dumpZeroOrder !== false;
-          // The dumped order leaves *with* the beam. A cell fed right-to-left keeps its
-          // rotation (lanes align to the beam axis, not its direction), so drawing this
-          // along +x would point it back up the beam it came from.
-          const s = laneExitSign(data);
-          const face = artwork.width / 2 + s * (artwork.width / 2);
-          const inner = artwork.width / 2 + s * (artwork.width / 2 - 16);
-          const tip = artwork.width / 2 + s * (artwork.width / 2 + 12);
+          const s = deflectSignOf(data);
+          const w = artwork.width, h = artwork.height;
+          const edge = h / 2 - s * (h / 2);           // −kick side, in the cell's own frame
+          const inward = edge + s * 3;
           return (
             <svg
               style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', overflow: 'visible' }}
-              width={artwork.width} height={artwork.height}
+              width={w} height={h}
               overflow="visible"
             >
-              <title>{dumped ? '0th order — blocked at the cell' : '0th order — routed out on the dump lane'}</title>
-              {/* Peel-off: the unused order deviating inside the cell out to its lane. */}
-              <line
-                x1={inner} y1={artwork.height / 2} x2={face} y2={laneY}
-                stroke={catColor} strokeWidth="1" strokeOpacity="0.4"
-                strokeDasharray="2,2" strokeLinecap="round"
+              <title>
+                {`RF transducer — diffracted order deflects ${deflectDegOf(data)}° `}
+                {data.deflectSide === 'ccw' ? 'anticlockwise' : 'clockwise'}
+              </title>
+              {/* The bonded transducer, hugging the crystal face. */}
+              <rect
+                x={w / 2 - w / 6} y={Math.min(edge, inward)}
+                width={w / 3} height={3}
+                fill={catColor} fillOpacity="0.75" rx="0.5"
               />
-              {/* Short stub along the lane, then the block if it is absorbed here. */}
+              {/* Acoustic wave crossing the crystal, in the direction it pushes the light. */}
               <line
-                x1={face} y1={laneY} x2={tip} y2={laneY}
-                stroke={catColor} strokeWidth="1"
-                strokeOpacity={dumped ? 0.65 : 0.3}
-                strokeDasharray={dumped ? undefined : '2,2'}
-                strokeLinecap="round"
+                x1={w / 2} y1={inward} x2={w / 2} y2={h / 2 + s * (h / 2 - 3)}
+                stroke={catColor} strokeWidth="1" strokeOpacity="0.35"
+                strokeDasharray="1.5,2" strokeLinecap="round"
               />
-              {dumped && (
-                <rect
-                  x={s > 0 ? tip : tip - 4} y={laneY - 5}
-                  width="4" height="10"
-                  fill={catColor} fillOpacity="0.7" rx="0.5"
-                />
-              )}
             </svg>
           );
         })()}

@@ -14,13 +14,14 @@ import { getNodeGeometry, artworkOf, bodyBox, occupiedBox, SURFACE_AT_45 } from 
 import { isOpticalNode } from '../types/components';
 import {
   advanceBeam, componentOutputs, emitterBeam, isEmitter, outputPortFor, fiberInputOf,
-  fiberFedBeam, MIN_POWER_MW, type PortKind,
+  fiberFedBeam, MIN_POWER_MW, type OutputPort,
 } from './propagate';
 import { mirrorReflect, perpOf, dirKey, rotateBy, boxHalfExtent, angleOf, snapAngle, type Vec2, type Pt } from './geometry';
 import { mmToPx, pxToMm } from './scale';
 import { drawnEndpoints, fanCollinearSegments } from './beamLayout';
-import { bodyAxis, componentLanes, laneNormal } from './lanes';
+import { bodyAxis, componentLanes, laneNormal, SIDED_TYPES } from './lanes';
 import { chamberSpec, chamberPassage, chamberBlockMessage, polygonHalfExtent } from './chamber';
+import { diffractedDirection } from './diffraction';
 import { placeLabels } from './labelPlacement';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -301,11 +302,18 @@ function waistMarker(
 }
 
 /** Which way a beam leaves a component, for each kind of port. */
-function portDirection(kind: PortKind, incoming: Vec2, rotation: number): Vec2 {
-  switch (kind) {
-    case 'reflect': return mirrorReflect(incoming, rotation);
-    case 'retro':   return { dx: -incoming.dx, dy: -incoming.dy };
-    default:        return incoming;
+function portDirection(
+  port: OutputPort,
+  incoming: Vec2,
+  rotation: number,
+  data: OpticalNodeData,
+): Vec2 {
+  switch (port.kind) {
+    case 'reflect':  return mirrorReflect(incoming, rotation);
+    case 'retro':    return { dx: -incoming.dx, dy: -incoming.dy };
+    // Turned towards the cell's fixed kick, which is what closes a double pass.
+    case 'diffract': return diffractedDirection(incoming, rotation, data);
+    default:         return incoming;
   }
 }
 
@@ -646,10 +654,10 @@ export function autoRoute(
     // flip which side the dumped order leaves by, and a lane is a place on the device: that
     // invariance is what lets a double-passed cell retrace its own path.
     const beamAngle = snapAngle(angleOf(ray.dir));
-    const sidedLanes = componentLanes(best.data).length > 1;
+    const sided = SIDED_TYPES.has(best.data.type);
     const autoRot = (isSecondEntry || AIMED_TYPES.has(best.data.type))
       ? (best.data.rotation ?? 0)
-      : (sidedLanes ? beamAngle % 180 : beamAngle);
+      : (sided ? beamAngle % 180 : beamAngle);
 
     if (!isSecondEntry) result.rotations.set(best.id, autoRot);
 
@@ -771,7 +779,7 @@ export function autoRoute(
           x: laneCentre.x + laneN.dx * exitOffset,
           y: laneCentre.y + laneN.dy * exitOffset,
         },
-        dir:          portDirection(port.kind, ray.dir, best.data.rotation ?? 0),
+        dir:          portDirection(port, ray.dir, autoRot, best.data),
         beam:         port.beam,
         path,
         hits:         ray.hits + 1,
@@ -792,6 +800,27 @@ export function autoRoute(
     result.warnings.push({
       nodeId: node.id,
       message: 'No light is reaching the fibre input this is tagged to, so it emits nothing.',
+    });
+  }
+
+  // ── Acousto-optic arms left on the wrong order ────────────────────────────
+  // Both orders are real beams now (1.3). A cell whose *diffracted* order runs off with
+  // nothing on it, while its 0th order feeds the rest of the arm, is almost always a layout
+  // drawn when the two orders shared an axis: everything downstream is unshifted. Worth
+  // saying once per cell, since the powers and detunings all look plausible.
+  for (const node of nodes) {
+    if (node.data.type !== 'aom' && node.data.type !== 'aod') continue;
+    const out = result.segments.filter(s => s.sourceId === node.id);
+    const first = out.find(s => s.sourceHandle === 'order1');
+    const zeroth = out.find(s => s.sourceHandle === 'order0');
+    if (!first || !zeroth) continue;              // 0th order driven deliberately, or dark
+    if (!first.free || zeroth.free) continue;     // the diffracted arm is in use
+    result.warnings.push({
+      nodeId: node.id,
+      message: 'The diffracted order leaves at an angle and hits nothing, while the '
+        + 'undiffracted 0th order feeds the rest of this arm — so nothing downstream carries '
+        + 'the RF shift. Move the arm onto the diffracted beam, or set Order to 0 if you '
+        + 'really are using the undiffracted light.',
     });
   }
 

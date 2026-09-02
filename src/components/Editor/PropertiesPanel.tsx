@@ -1,4 +1,5 @@
 // Right-side properties panel — compact inline-label layout
+import { DEFAULT_DEFLECT_DEG } from '../../physics/diffraction';
 import React from 'react';
 import { useLayout } from '../../store/layoutContext';
 import type { OpticalNodeData } from '../../types/components';
@@ -437,17 +438,22 @@ function renderFields(
           <option value="0">0 (through)</option>
         </Sel>
       </Row>
-      <Toggle
-        checked={data.dumpZeroOrder !== false}
-        onChange={v => u({ dumpZeroOrder: v })}
-        label="Block 0th order at cell"
-      />
+      <Row label="Deflects">
+        <Sel value={data.deflectSide ?? 'cw'} onChange={e => u({ deflectSide: e.target.value })}>
+          <option value="cw">Clockwise</option>
+          <option value="ccw">Anticlockwise</option>
+        </Sel>
+      </Row>
       <Hint>
-        Efficiency is the fraction of incident power in the diffracted order, which
-        carries a {data.activeOrder === '-1' ? '−' : '+'}{data.rfFrequency} MHz shift and
-        continues straight through. Untick above to route the 0th order out along its own
-        lane, one inch {data.activeOrder === '-1' ? 'above' : 'below'}, where you can put a
-        beam block on it.
+        Efficiency is the fraction of incident power in the diffracted order, which carries a{' '}
+        {data.activeOrder === '-1' ? '−' : '+'}{data.rfFrequency} MHz shift. Both orders come
+        out as real beams: the 0th carries straight on and the diffracted one leaves{' '}
+        {DEFAULT_DEFLECT_DEG}° to the {data.deflectSide === 'ccw' ? 'anticlockwise' : 'clockwise'}{' '}
+        side, so put a beam block on whichever you are not using. The drawn angle is a
+        caricature — a real deflection is about a degree, too small to see.
+        <br />
+        <b>Deflects</b> is where the transducer is bonded and <b>Order</b> is the RF drive, so
+        they are set separately: either sign of shift can leave on either side.
       </Hint>
     </>;
     case 'aod': return <>
@@ -455,11 +461,16 @@ function renderFields(
       <Row label="RF Power" unit="dBm"><Num value={data.rfPower} onChange={v => u({ rfPower: v })} /></Row>
       <Row label="Efficiency" unit="%"><Num value={data.diffractionEfficiency} onChange={v => u({ diffractionEfficiency: v })} min={0} max={100} step={0.1} /></Row>
       <Row label="Transmission" unit="%"><Num value={data.transmission} onChange={v => u({ transmission: v })} min={0} max={100} step={0.1} /></Row>
-      <Toggle
-        checked={data.dumpZeroOrder !== false}
-        onChange={v => u({ dumpZeroOrder: v })}
-        label="Block 0th order at cell"
-      />
+      <Row label="Deflects">
+        <Sel value={data.deflectSide ?? 'cw'} onChange={e => u({ deflectSide: e.target.value })}>
+          <option value="cw">Clockwise</option>
+          <option value="ccw">Anticlockwise</option>
+        </Sel>
+      </Row>
+      <Hint>
+        Both orders leave as real beams — the deflected one {DEFAULT_DEFLECT_DEG}° off the
+        input — so block whichever you are not using.
+      </Hint>
     </>;
     case 'eom': return <>
       <Row label="Type">

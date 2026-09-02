@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { Node } from '@xyflow/react';
+import { DEFAULT_DEFLECT_DEG } from '../diffraction';
 import { autoRoute } from '../autoRoute';
-import { unitAt, DIR_STEP_DEG } from '../geometry';
-import { componentLanes, laneNormal, ORDER_SEPARATION_PX } from '../lanes';
+import { unitAt, DIR_STEP_DEG, angleOf, angleDiff, dot } from '../geometry';
+import { componentLanes, bodyAxis } from '../lanes';
+import { PX_PER_INCH } from '../scale';
 import { getNodeGeometry, artworkOf } from '../../utils/nodeGeometry';
 import type { OpticalNodeData } from '../../types/components';
 
@@ -94,37 +96,59 @@ describe('an acousto-optic cell aligns to the beam axis, not its direction', () 
     expect(dumpSide(0)).not.toBe(0);
   });
 
-  it('puts the dumped order on the cell\'s new normal once it has turned', () => {
-    // The reason the lane normal has to follow the rotation this trace decided rather than
-    // the one still in the node's data: otherwise a freshly turned cell dumps its 0th
-    // order along the beam axis instead of beside it.
-    const nodes = bench(90, aom({ dumpZeroOrder: false }) as Partial<OpticalNodeData> & { type: 'aom' });
+  it('leaves both orders from the same crystal, not from parallel lanes', () => {
+    // The orders used to be drawn an inch apart on parallel lanes, because the true deflection
+    // is too small to see. They come out of one crystal now and diverge by angle instead, so
+    // what has to follow the rotation the trace settled on is the kick direction, not an offset.
+    const nodes = bench(90, aom() as Partial<OpticalNodeData> & { type: 'aom' });
     const { segments, rotations } = autoRoute(nodes, []);
     expect(rotations.get('DUT')).toBe(90);
 
     const zeroth = segments.find(s => s.sourceHandle === 'order0')!;
     const diffracted = segments.find(s => s.sourceHandle === 'order1')!;
-    // Vertical cell: the two lanes are separated horizontally, by one inch.
-    expect(Math.abs(zeroth.x1 - diffracted.x1)).toBeCloseTo(ORDER_SEPARATION_PX, 6);
-    expect(Math.abs(zeroth.y1 - diffracted.y1)).toBeLessThan(1e-6);
+
+    // They leave the exit face a few px apart — one of them is already turning — and nowhere
+    // near the inch the old lane offset put between them.
+    const gap = Math.hypot(zeroth.x1 - diffracted.x1, zeroth.y1 - diffracted.y1);
+    expect(gap).toBeLessThan(PX_PER_INCH / 2);
+
+    // Same origin, properly: run the diffracted beam backwards and it meets the 0th order's
+    // line inside the cell, rather than running alongside it forever.
+    const d0 = { dx: zeroth.x2 - zeroth.x1, dy: zeroth.y2 - zeroth.y1 };
+    const d1 = { dx: diffracted.x2 - diffracted.x1, dy: diffracted.y2 - diffracted.y1 };
+    const den = d1.dx * d0.dy - d1.dy * d0.dx;
+    expect(Math.abs(den)).toBeGreaterThan(1e-9);
+    const t = ((zeroth.x1 - diffracted.x1) * d0.dy - (zeroth.y1 - diffracted.y1) * d0.dx) / den;
+    const meet = { x: diffracted.x1 + d1.dx * t, y: diffracted.y1 + d1.dy * t };
+    expect(t).toBeLessThan(0);   // behind the diffracted beam's start: inside the crystal
+    // Within the cell body of the exit face, which is where the crystal is.
+    expect(Math.hypot(meet.x - zeroth.x1, meet.y - zeroth.y1)).toBeLessThan(PX_PER_INCH);
   });
 
-  it('separates the lanes along the cell normal at every lattice angle', () => {
+  it('sends the 0th order straight on and the diffracted one 15° off, at every lattice angle', () => {
     for (let deg = 0; deg < 360; deg += DIR_STEP_DEG) {
-      const nodes = bench(deg, aom({ dumpZeroOrder: false }) as Partial<OpticalNodeData> & { type: 'aom' });
+      const nodes = bench(deg, aom() as Partial<OpticalNodeData> & { type: 'aom' });
       const { segments, rotations } = autoRoute(nodes, []);
       const zeroth = segments.find(s => s.sourceHandle === 'order0');
       const diffracted = segments.find(s => s.sourceHandle === 'order1');
       if (!zeroth || !diffracted) continue;
 
+      const zeroDeg = angleOf({ dx: zeroth.x2 - zeroth.x1, dy: zeroth.y2 - zeroth.y1 });
+      const diffDeg = angleOf({ dx: diffracted.x2 - diffracted.x1, dy: diffracted.y2 - diffracted.y1 });
+      // Undeviated: the 0th order carries on exactly along the beam that fed it.
+      expect(Math.abs(angleDiff(zeroDeg, deg)), `0th at ${deg}°`).toBeLessThan(1e-6);
+      // And the diffracted order is exactly the deflection away from it…
+      expect(angleDiff(diffDeg, zeroDeg), `1st at ${deg}°`).toBeCloseTo(DEFAULT_DEFLECT_DEG, 6);
+      // …on the side the *cell* dictates. The kick is bolted to the crystal, so a cell fed
+      // against its own body axis bends the beam the other way round the screen — which is
+      // precisely what lets a second pass undo the first deflection.
       const rot = rotations.get('DUT')!;
-      const n = laneNormal(rot);
-      const dx = zeroth.x1 - diffracted.x1;
-      const dy = zeroth.y1 - diffracted.y1;
-      // The whole separation lies along the cell's own normal: one inch across it, and
-      // nothing along the beam axis.
-      expect(Math.abs(dx * n.dx + dy * n.dy)).toBeCloseTo(ORDER_SEPARATION_PX, 6);
-      expect(Math.abs(dx * -n.dy + dy * n.dx)).toBeLessThan(1e-6);
+      const forward = dot(unitAt(deg), bodyAxis(rot)) >= 0 ? 1 : -1;
+      const cross = Math.sign(
+        (zeroth.x2 - zeroth.x1) * (diffracted.y2 - diffracted.y1)
+        - (zeroth.y2 - zeroth.y1) * (diffracted.x2 - diffracted.x1),
+      );
+      expect(cross, `side at ${deg}°`).toBe(forward);
     }
   });
 });
@@ -146,6 +170,7 @@ describe('the rest of the rules are unchanged', () => {
   it('has one artwork box for an instrument, turned by its rotation', () => {
     const a = artworkOf('aom');
     expect(getNodeGeometry('aom', 90).width).toBe(a.height);
-    expect(componentLanes(aom()).length).toBe(2);
+    // One axis per component again: the orders leave at an angle, not on parallel lanes.
+    expect(componentLanes(aom()).length).toBe(1);
   });
 });

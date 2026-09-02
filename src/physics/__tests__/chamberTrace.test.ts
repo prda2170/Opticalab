@@ -5,6 +5,7 @@ import { chamberSpec, polygonPoints, circumradiusPx, portStates } from '../chamb
 import { getNodeGeometry, sizeOf } from '../../utils/nodeGeometry';
 import { layoutToJSON, layoutFromJSON } from '../../utils/export';
 import { unitAt } from '../geometry';
+import { diffractedDirection, DEFAULT_DEFLECT_DEG } from '../diffraction';
 import type { OpticalNodeData } from '../../types/components';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -64,10 +65,20 @@ describe('a beam crossing the chamber', () => {
   });
 
   it('carries the beam through unchanged in colour and detuning', () => {
+    // The shifted light is the diffracted order, and that now leaves the cell at an angle, so
+    // the chamber sits on the diffracted line and is turned to meet it square on.
+    const cell = { type: 'aom', category: 'modulation', rfFrequency: 80,
+      diffractionEfficiency: 100, activeOrder: '+1' } as Partial<OpticalNodeData> & { type: 'aom' };
+    const d = diffractedDirection(unitAt(0), 0, cell as OpticalNodeData);
+    const along = (r: number) => ({ x: 500 + d.dx * r, y: AXIS + d.dy * r });
+    const chamberAt = along(400);
+    const pdAt = along(1100);
+
     const nodes = [
       laser(),
-      at('A1', { type: 'aom', category: 'modulation', rfFrequency: 80, diffractionEfficiency: 100, order: 1 }, 500, AXIS),
-      chamber(), pd(),
+      at('A1', cell, 500, AXIS),
+      chamber({ rotation: DEFAULT_DEFLECT_DEG }, chamberAt.x, chamberAt.y),
+      pd(pdAt.x, pdAt.y),
     ];
     const out = arriving(autoRoute(nodes, []), 'PD')!;
     expect(out.wavelength).toBe(780);

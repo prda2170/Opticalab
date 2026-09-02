@@ -278,7 +278,25 @@ export interface FiberCableData extends BaseNodeData {
 }
 
 // ─── Modulation ───────────────────────────────────────────────────────────────
-export interface AOMData extends BaseNodeData {
+/**
+ * Fields shared by the acousto-optic devices, both of which now put **both** orders into free
+ * space: the 0th carries straight on, the diffracted one leaves at an angle, and you block
+ * whichever you are not using.
+ */
+export interface DiffractingData {
+  /**
+   * Drawn deflection of the diffracted order, degrees. A lattice multiple, so components on
+   * the diffracted beam can align to it. The true angle (~1°) is physics, not drawing.
+   */
+  deflectDeg?: number;
+  /**
+   * Which side the diffracted order leaves on — where the transducer is bonded. Independent
+   * of `activeOrder`, which is the RF drive and sets the frequency shift instead.
+   */
+  deflectSide?: 'cw' | 'ccw';
+}
+
+export interface AOMData extends BaseNodeData, DiffractingData {
   type: 'aom';
   /** Drive frequency, MHz — also the frequency shift of the ±1 order. */
   rfFrequency: number;
@@ -289,14 +307,9 @@ export interface AOMData extends BaseNodeData {
   transmission: number;
   /** Which order is used downstream. '0' means the undiffracted beam is used. */
   activeOrder: '+1' | '-1' | '0';
-  /**
-   * Block the undiffracted order inside the cell (the default). Set false to route it
-   * out along the dump lane so it can be blocked with a real beam block.
-   */
-  dumpZeroOrder?: boolean;
 }
 
-export interface AODData extends BaseNodeData {
+export interface AODData extends BaseNodeData, DiffractingData {
   type: 'aod';
   /** Centre drive frequency, MHz — scanning is not modelled. */
   rfFrequency: number;
@@ -305,8 +318,6 @@ export interface AODData extends BaseNodeData {
   diffractionEfficiency: number;
   /** RF-off throughput of the cell, %. Sets how much lands in the 0th order. */
   transmission: number;
-  /** Block the undiffracted order inside the cell (the default). */
-  dumpZeroOrder?: boolean;
 }
 
 export interface EOMData extends BaseNodeData {

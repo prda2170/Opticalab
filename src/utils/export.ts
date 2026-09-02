@@ -22,7 +22,7 @@ import { isKnownComponentType } from './nodeGeometry';
  * bump the **major** only for a change no migration can express, since a major ahead of
  * this build is refused rather than guessed at.
  */
-export const LAYOUT_VERSION = '1.2';
+export const LAYOUT_VERSION = '1.3';
 
 /** What a layout file looks like on disk. `metadata` is informational only. */
 interface LayoutFile {
@@ -150,6 +150,26 @@ const MIGRATIONS: Migration[] = [
         delete data.gain;
         delete data.saturatedPower;
       }
+    },
+  },
+
+  // 1.3 made both acousto-optic orders real beams: the 0th carries straight on and the
+  // diffracted one leaves at an angle, instead of the two being drawn as parallel lanes with
+  // the 0th optionally absorbed inside the cell. Nothing about a saved cell is wrong, but its
+  // *arm* is: whatever used to sit on the shared axis downstream now meets the undiffracted
+  // 0th order, so it no longer carries the RF shift. That needs a human eye, so it is a note
+  // rather than a silent re-placement — and the tracer warns per cell as well.
+  {
+    to: '1.3',
+    node(data, notes) {
+      if (data.type !== 'aom' && data.type !== 'aod') return;
+      if ('dumpZeroOrder' in data) delete data.dumpZeroOrder;
+      notes.add(
+        'Acousto-optic cells now put both orders into free space: the 0th order carries '
+        + 'straight on and the diffracted order leaves at an angle. Components that used to '
+        + 'sit on the shared axis after a cell are on the 0th order now, so move each '
+        + 'diffracted arm onto its angled beam — the trace flags the cells this affects.',
+      );
     },
   },
 ];
